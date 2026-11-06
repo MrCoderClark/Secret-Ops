@@ -5,7 +5,7 @@ part of the same change that moves a line — stale progress is worse than none.
 
 Legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
-Last updated: 2026-11-06
+Last updated: 2026-11-06 (phase-1/primitives branch)
 
 ---
 
@@ -18,25 +18,26 @@ Last updated: 2026-11-06
 - [x] `SPECS.md`, `PROGRESS.md`, `CLAUDE.md`
 - [ ] `next.config.ts` with security headers + standalone output
 - [ ] `tsconfig.json`, `tailwind.config.ts`, `postcss.config.js`
-- [ ] `src/app/layout.tsx`, `src/app/globals.css`
-- [ ] `src/middleware.ts` (cross-origin guard + `x-request-id`)
-- [ ] `scripts/bootstrap.ts` — prints `SESSION_SECRET` + `SECRETOPS_ROOT_KEYS`
+- [x] `web/app/layout.tsx`, `web/app/globals.css` (Next.js scaffold)
+- [ ] `web/middleware.ts` (cross-origin guard + `x-request-id`)
+- [ ] `web/scripts/bootstrap.ts` — prints `SESSION_SECRET` + `SECRETOPS_ROOT_KEYS`
+- [x] `web/prisma/schema.prisma` — moved from `docs/` so Prisma finds it
 
 ## Milestone 1 — Primitives
 
-- [ ] `src/lib/db.ts` — Prisma client singleton
-- [ ] `src/lib/crypto.ts` — `seal`, `open`, `rewrapVersion`, keyring, hash, generators, password hashing
-- [ ] `src/lib/auth.ts` — sessions (jose HS256), token mint/verify (SHA-256), CSRF, rate limit
-- [ ] `src/lib/session.ts` — `resolveActor()` from cookie or bearer
-- [ ] `src/lib/rbac.ts` — role matrix, `can()`, `canReadValue`, `canWriteValue`
-- [ ] `src/lib/validation.ts` — every Zod schema the API uses
-- [ ] `src/lib/audit.ts` — `recordEvent`, `verifyChain`, `actionLabel`
-- [ ] `src/lib/policies.ts` — `evaluatePolicies()` + rule catalogue
+- [x] `web/lib/db.ts` — Prisma client singleton
+- [x] `web/lib/crypto.ts` — `seal`, `open`, `rewrapVersion`, keyring, hash, generators, password hashing
+- [x] `web/lib/auth.ts` — sessions (jose HS256), token mint/verify (SHA-256), CSRF, rate limit
+- [x] `web/lib/session.ts` — `resolveActor()` from cookie or bearer
+- [x] `web/lib/rbac.ts` — role matrix, `can()`, `canReadValue`, `canWriteValue`
+- [x] `web/lib/validation.ts` — every Zod schema the API uses
+- [x] `web/lib/audit.ts` — `recordEvent`, `verifyChain`, `actionLabel`
+- [x] `web/lib/policies.ts` — `evaluatePolicies()` + rule catalogue
 
 ## Milestone 2 — Service layer
 
-- [ ] `src/lib/secrets.ts` — `listSecrets`, `putSecret`, `revealSecret`, `rotateSecret`, `deleteSecret`
-- [ ] `src/lib/sync.ts` — `planSync`, `runSync`, `recordObservedState`, `bundleFor`, `adapterFor` (stubs that decrypt-prove)
+- [ ] `web/lib/secrets.ts` — `listSecrets`, `putSecret`, `revealSecret`, `rotateSecret`, `deleteSecret`
+- [ ] `web/lib/sync.ts` — `planSync`, `runSync`, `recordObservedState`, `bundleFor`, `adapterFor` (stubs that decrypt-prove)
 
 ## Milestone 3 — Seed
 
@@ -80,14 +81,14 @@ Governance
 ## Milestone 5 — Dashboard
 
 Shell
-- [ ] `src/components/shell/Sidebar.tsx`
-- [ ] `src/components/shell/Header.tsx` (search field + health pill)
-- [ ] `src/components/shell/CommandPalette.tsx`
-- [ ] `src/app/(app)/layout.tsx`
+- [ ] `web/components/shell/Sidebar.tsx`
+- [ ] `web/components/shell/Header.tsx` (search field + health pill)
+- [ ] `web/components/shell/CommandPalette.tsx`
+- [ ] `web/app/(app)/layout.tsx`
 - [ ] UI primitives: `Button`, `Card`, `Table`, `Badge`, `Dialog`, `Input`, `Select`, `CoverageBar`
 
 Pages
-- [ ] `src/app/login/page.tsx`
+- [ ] `web/app/login/page.tsx`
 - [ ] `/overview` — mirrors the mock (metrics, sync posture, runway, recent activity)
 - [ ] `/secrets` — filterable table, reveal, rotate, delete
 - [ ] `/sync` — targets, plan/dry-run/apply
@@ -123,6 +124,12 @@ Append-only. One line each, dated.
   design docs; schema is frozen, docs are frozen, everything else is open.
 - **2026-11-06** — Known gaps from `README.md` are explicitly accepted for v1
   and do not block the Milestone 7 sign-off.
+- **2026-11-06** — Next.js scaffold lives at `web/` (not `src/` at repo root).
+  All service-layer paths in SPECS/CLAUDE/PROGRESS now say `web/lib/*`; TS
+  path alias `@/*` → `web/*` means imports are `@/lib/...`.
+- **2026-11-06** — Schema moved from `docs/schema.prisma` to
+  `web/prisma/schema.prisma` so `npx prisma generate` from the `web/` package
+  root finds it with no extra config.
 
 ## Risks / open questions
 

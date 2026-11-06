@@ -31,7 +31,7 @@ change.
 These rules are the point of the system. Breaking them is a security defect, not
 a style issue.
 
-1. **A secret value never leaves `src/lib/secrets.ts` in plaintext** except
+1. **A secret value never leaves `web/lib/secrets.ts` in plaintext** except
    through `revealSecret()`. No log line, no error message, no list response,
    no React prop handed to a client component. If you find yourself wanting to,
    something upstream is wrong.
@@ -56,13 +56,13 @@ a style issue.
 
 The layering in `ARCHITECTURE.md § Layering` is load-bearing. In particular:
 
-- Client components never import from `src/lib/secrets.ts`. They receive
+- Client components never import from `web/lib/secrets.ts`. They receive
   metadata as props from a server component, and call the reveal route when a
   human asks for a value.
 - API routes validate (Zod), resolve the actor, check the capability, and
   delegate. They contain no crypto, no business logic, no Prisma calls that
   touch secret material.
-- The service layer (`src/lib/secrets.ts`, `sync.ts`, `audit.ts`) owns the
+- The service layer (`web/lib/secrets.ts`, `sync.ts`, `audit.ts`) owns the
   invariants. Every path that touches a value goes through here.
 - Pure helpers (`rbac.ts`, `validation.ts`) are called by both the UI and the
   API so they always agree.
@@ -107,9 +107,9 @@ the same commit.
 ## Conventions
 
 - **Validation.** Every write path parses its body with a Zod schema from
-  `src/lib/validation.ts`. Add the schema there, do not inline it.
+  `web/lib/validation.ts`. Add the schema there, do not inline it.
 - **Authorization.** Use `can()`, `canReadValue()`, `canWriteValue()` from
-  `src/lib/rbac.ts`. Do not write a role comparison inline.
+  `web/lib/rbac.ts`. Do not write a role comparison inline.
 - **Audit.** Add new actions to `actionLabel()` so the UI renders them in
   English. Record DENIED events with a `reason` in the metadata.
 - **Validation errors.** Return `{ error, fieldErrors }` — the UI relies on it.
@@ -131,13 +131,13 @@ bottom shows avatar, name, role, and a Sign out button.
 
 ## When adding something
 
-- **A sync provider** — implement `adapterFor(kind)` in `src/lib/sync.ts`. Keep
+- **A sync provider** — implement `adapterFor(kind)` in `web/lib/sync.ts`. Keep
   the plan/apply/observe contract. Resolve values through the stored version,
   return `{ ok, error }` rather than throwing, and report the hash the target
   now holds.
 - **A policy rule** — extend the union in `createPolicySchema`, add a case in
   `evaluatePolicies()`, add a catalogue entry on the Policies page.
-- **A role capability** — edit the matrix in `src/lib/rbac.ts` and mirror the
+- **A role capability** — edit the matrix in `web/lib/rbac.ts` and mirror the
   change in the `SECURITY.md` table in the same commit.
 - **A new audited action** — add it to `actionLabel()`, write it at the point
   the action completes (and at the DENIED path too).
@@ -147,7 +147,7 @@ bottom shows avatar, name, role, and a Sign out button.
 - Do not add SSO, MFA enforcement, bundle signing, crypto-shredding, HSM
   integration, or a real KMS without asking first. They are documented gaps and
   each is a project of its own.
-- Do not add a real cloud provider SDK to `src/lib/sync.ts`. The adapters are
+- Do not add a real cloud provider SDK to `web/lib/sync.ts`. The adapters are
   stubs on purpose — they prove the value decrypts and report success. A real
   integration is a deliberate, scoped addition.
 - Do not introduce a Redis dependency to move rate limiting out of process. It
