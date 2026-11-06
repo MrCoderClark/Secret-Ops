@@ -104,6 +104,23 @@ smaller, reviewable changes beat a sprawling branch that touches everything.
 When a branch's work lands, update the matching checkbox in `PROGRESS.md` in
 the same commit.
 
+### Staging rules that matter
+
+- **Never use `git commit -am`** when the change set includes new files. `-a`
+  only stages *modified tracked* files; untracked ones are silently left out,
+  and the commit's message ends up lying about its contents. This has already
+  bitten us once — PR #1 shipped a "primitives" commit that contained only a
+  schema rename because the eight `web/lib/*.ts` files were untracked.
+  Always: `git add <explicit paths>`, then `git status` to eyeball what will
+  land, then `git commit -m ...`.
+- **After editing `web/package.json`**, run `pnpm install` from `web/` before
+  `pnpm typecheck` or `pnpm prisma generate`. Otherwise `npx` falls back to
+  downloading whatever version it wants — which has produced a Prisma 8 RC
+  against a `@prisma/client@5.22` runtime.
+- **After editing `web/prisma/schema.prisma`**, run `pnpm prisma generate`
+  from `web/` before typecheck. The generated client is what the service
+  layer imports from `@prisma/client`.
+
 ## Conventions
 
 - **Validation.** Every write path parses its body with a Zod schema from

@@ -192,8 +192,8 @@ non-root user, with a health check wired to `/api/health`.
 
 ```bash
 docker compose up -d
-docker compose exec app npx prisma migrate deploy
-docker compose exec app npx tsx prisma/seed.ts    # optional demo data
+docker compose exec app pnpm prisma migrate deploy
+docker compose exec app pnpm db:seed              # optional demo data
 ```
 
 `docker-compose.yml` starts three services: Postgres, the app, and the worker.
