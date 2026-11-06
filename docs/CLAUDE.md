@@ -88,6 +88,22 @@ npm run build
 `npm run typecheck` and `npm run build` are the gate. Neither needs a live
 database — the build sets a placeholder `DATABASE_URL`.
 
+## Branching
+
+Every major change goes on its own branch off `main`. Do not commit a feature,
+milestone, or refactor straight to `main` — branch first, make the change,
+merge back. "Major" here means anything larger than a one-line doc tweak or a
+typo fix: a milestone from `PROGRESS.md`, a new service module, a schema
+change, a UI pass, a dependency bump.
+
+Branch names follow `phase-N/short-slug` for milestone work (e.g.
+`phase-1/primitives`, `phase-4/api-secrets`) and `fix/<slug>` or
+`chore/<slug>` for everything else. Keep a branch focused on one concern —
+smaller, reviewable changes beat a sprawling branch that touches everything.
+
+When a branch's work lands, update the matching checkbox in `PROGRESS.md` in
+the same commit.
+
 ## Conventions
 
 - **Validation.** Every write path parses its body with a Zod schema from
