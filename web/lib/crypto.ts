@@ -7,20 +7,28 @@ import {
   scrypt as scryptCb,
   timingSafeEqual,
 } from "node:crypto";
+import { createRequire } from "node:module";
 import { promisify } from "node:util";
 
 // argon2 is a native module. On some Alpine builds the binding is missing;
 // `tryRequireArgon2` falls back to scrypt rather than crashing the process.
 // Both hashers encode their algorithm in the stored string so `verifyPassword`
 // routes to the right backend.
+//
+// We resolve argon2 via `createRequire` so the load is dynamic (and can fail
+// gracefully) without triggering @typescript-eslint/no-require-imports, which
+// Next.js enforces at build time. Marking argon2 as serverComponentsExternal
+// in next.config.mjs keeps Next from bundling the native .node file so the
+// require resolves against the real node_modules at runtime.
 const scrypt = promisify(scryptCb);
+const requireFn = createRequire(import.meta.url);
 
 type Argon2 = typeof import("argon2") | null;
 let argon2Cached: Argon2 | undefined;
 function tryRequireArgon2(): Argon2 {
   if (argon2Cached !== undefined) return argon2Cached;
   try {
-    argon2Cached = require("argon2") as typeof import("argon2");
+    argon2Cached = requireFn("argon2") as typeof import("argon2");
   } catch {
     argon2Cached = null;
   }

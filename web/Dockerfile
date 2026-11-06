@@ -18,7 +18,10 @@ RUN corepack enable && corepack prepare pnpm@10 --activate
 FROM base AS deps
 WORKDIR /app
 RUN apk add --no-cache python3 make g++
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# .npmrc MUST be here so `node-linker=hoisted` takes effect on this install.
+# Without it, pnpm falls back to its isolated symlink layout and the runner
+# stage's `COPY /app/node_modules/.prisma` finds nothing at the top level.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 RUN pnpm install --frozen-lockfile
 
 # ---- builder ---------------------------------------------------------------

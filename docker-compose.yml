@@ -49,7 +49,10 @@ services:
       APP_URL: ${APP_URL:-http://localhost:3000}
       NODE_ENV: production
     ports:
-      - "3000:3000"
+      # Override APP_PORT in .env when something else on the host already
+      # holds 3000 (a stray `pnpm dev`, a dashboard tool, etc.) — compose
+      # fast-fails on bind conflicts, so routing around them beats hunting.
+      - "${APP_PORT:-3000}:3000"
 
 volumes:
   postgres-data:
