@@ -130,6 +130,17 @@ Append-only. One line each, dated.
 - **2026-11-06** — Schema moved from `docs/schema.prisma` to
   `web/prisma/schema.prisma` so `npx prisma generate` from the `web/` package
   root finds it with no extra config.
+- **2026-11-06** — Docker is not required for everything: the primary dev
+  flow stays "postgres in Docker, `pnpm dev` on the host". `docker compose
+  up -d` is the single-host production-style path. The compose stack now
+  builds from `./web` with the Dockerfile at `web/Dockerfile`, pnpm 10 via
+  corepack, Next.js standalone output, and argon2 copied into the runtime
+  image explicitly (it's `serverComponentsExternalPackages` in
+  `next.config.mjs` so Next doesn't try to bundle the native binding).
+- **2026-11-06** — Worker service dropped from `docker-compose.yml` until
+  Milestone 6 lands `web/scripts/worker.ts`. Rationale: a service that
+  always crash-loops is worse than one that isn't defined. Lands back when
+  the code exists and the image copies `tsx` into runtime.
 
 ## Risks / open questions
 

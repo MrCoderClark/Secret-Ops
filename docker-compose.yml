@@ -1,11 +1,19 @@
 # ---------------------------------------------------------------------------
-# Local / single-host deployment.
+# SecretOps — local / single-host deployment.
 #
-#   docker compose up -d
-#   docker compose exec app npx prisma migrate deploy
-#   docker compose exec app npx tsx prisma/seed.ts
+#   docker compose up -d                                 # postgres + app
+#   docker compose exec app pnpm prisma migrate deploy   # apply migrations
+#   docker compose exec app pnpm db:seed                 # optional demo data
 #
-# Secrets come from `.env` and are never baked into an image.
+# For day-to-day development, run just Postgres in a container and keep the
+# app on the host (faster iteration, native node_modules):
+#
+#   docker compose up -d postgres
+#   cd web && pnpm dev
+#
+# Secrets come from .env at this directory and are never baked into an image.
+# The worker service lands in Milestone 6 (web/scripts/worker.ts); the compose
+# file picks it up automatically once it exists.
 # ---------------------------------------------------------------------------
 
 services:
@@ -28,7 +36,7 @@ services:
 
   app:
     build:
-      context: .
+      context: ./web
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
@@ -42,24 +50,6 @@ services:
       NODE_ENV: production
     ports:
       - "3000:3000"
-
-  worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-secretops}:${POSTGRES_PASSWORD:-secretops}@postgres:5432/${POSTGRES_DB:-secretops}?schema=public
-      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
-      SECRETOPS_ROOT_KEYS: ${SECRETOPS_ROOT_KEYS:?SECRETOPS_ROOT_KEYS must be set}
-      NODE_ENV: production
-      ROTATION_SWEEP_MS: ${ROTATION_SWEEP_MS:-21600000}
-      DRIFT_SWEEP_MS: ${DRIFT_SWEEP_MS:-1800000}
-    # The worker shares the app image but runs the scheduler entrypoint.
-    command: ["node", "-e", "require('child_process').spawn('npx',['tsx','scripts/worker.ts'],{stdio:'inherit'})"]
 
 volumes:
   postgres-data:
