@@ -1,0 +1,484 @@
+// SecretOps Platform — data model
+//
+// Design notes:
+//  * Secrets are never stored in plaintext. Every SecretVersion holds an
+//    envelope-encrypted ciphertext: a per-version data key (DEK) wraps the
+//    value, and the DEK itself is wrapped by the root key (KEK) that lives
+//    outside the database. See src/lib/crypto.ts.
+//  * Every mutation writes an AccessEvent. Events are hash-chained per
+//    organization (prevHash -> hash) so tampering is detectable.
+//  * The hierarchy is Organization -> Project -> Environment -> Secret ->
+//    SecretVersion. SyncTargets point an environment at an external runtime.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Identity & access
+// ---------------------------------------------------------------------------
+
+model Organization {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  plan         String   @default("enterprise")
+  // Root key identifier — lets you rotate the KEK without re-encrypting
+  // every value (old versions keep their keyId).
+  activeKeyId  String   @default("kek-v1")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users        Membership[]
+  projects     Project[]
+  auditEvents  AccessEvent[]
+  grants       Grant[]
+  requests     AccessRequest[]
+  tokens       ApiToken[]
+  policies     Policy[]
+
+  @@map("organizations")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  DEVELOPER
+  AUDITOR
+  READONLY
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  passwordHash  String
+  mfaEnabled    Boolean   @default(false)
+  mfaSecret     String?
+  // Status drives login: SUSPENDED users cannot authenticate.
+  status        String    @default("ACTIVE")
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  memberships   Membership[]
+  auditEvents   AccessEvent[]
+  requests      AccessRequest[] @relation("requester")
+  reviewed      AccessRequest[] @relation("reviewer")
+  tokensCreated ApiToken[]
+
+  @@map("users")
+}
+
+model Membership {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  role           Role         @default(DEVELOPER)
+  createdAt      DateTime     @default(now())
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@map("memberships")
+}
+
+// ---------------------------------------------------------------------------
+// Secret hierarchy
+// ---------------------------------------------------------------------------
+
+model Project {
+  id             String      @id @default(cuid())
+  organizationId String
+  name           String
+  slug           String
+  description    String?
+  // Free-form classification used by policy rules (e.g. "pci", "internal").
+  sensitivity    String      @default("internal")
+  archived       Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  environments   Environment[]
+  secrets        Secret[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@map("projects")
+}
+
+// Environment is the sync axis: the same logical secret materialised
+// differently in dev / staging / prod.
+model Environment {
+  id           String   @id @default(cuid())
+  projectId    String
+  name         String
+  slug         String
+  // Ordered promotion stage — dev=0, staging=1, prod=2. Used by promotion.
+  stage        Int      @default(0)
+  // Production environments require an approval before a secret changes.
+  requiresApproval Boolean @default(false)
+  protected    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  project      Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  secrets      Secret[]
+  syncTargets  SyncTarget[]
+  grants       Grant[]
+  requests     AccessRequest[]
+
+  @@unique([projectId, slug])
+  @@index([projectId])
+  @@map("environments")
+}
+
+// A Secret is the logical identity (e.g. DATABASE_URL in api/production).
+// The value lives on SecretVersion so history and rollback are free.
+model Secret {
+  id            String    @id @default(cuid())
+  projectId     String
+  environmentId String
+  // Slash-delimited path, e.g. "db/primary". Flat names are "root".
+  path          String
+  key           String
+  description   String?
+  // JSON-schema-ish type hint used by the CLI and SDK renderers.
+  valueType     String    @default("string")
+  // Drift detection: what the last sync observed at each target.
+  lastSyncedAt  DateTime?
+  rotationPolicyId String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  project       Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  environment   Environment  @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  versions      SecretVersion[]
+  rotationPolicy RotationPolicy? @relation(fields: [rotationPolicyId], references: [id])
+  syncStates    SyncState[]
+  grants        Grant[]
+  auditEvents   AccessEvent[]
+  requests      AccessRequest[]
+
+  @@unique([environmentId, path, key])
+  @@index([projectId, environmentId])
+  @@index([deletedAt])
+  @@map("secrets")
+}
+
+// An immutable, envelope-encrypted revision of a secret's value.
+model SecretVersion {
+  id           String   @id @default(cuid())
+  secretId     String
+  version      Int
+  // Base64 AES-256-GCM ciphertext of the secret value.
+  ciphertext   String
+  // Base64 GCM nonce + auth tag, stored separately for clarity.
+  iv           String
+  authTag      String
+  // Base64 AES-256-GCM wrapped data key (DEK wrapped by the KEK).
+  wrappedDek   String
+  dekIv        String
+  dekAuthTag   String
+  keyId        String   @default("kek-v1")
+  // SHA-256 of the plaintext — lets us prove equality without decrypting.
+  valueHash    String
+  // Cheap fingerprint the UI can show (first 4 + last 4 of hash).
+  fingerprint  String
+  createdById  String?
+  createdVia   String   @default("dashboard") // dashboard | cli | api | rotation-worker | import
+  createdAt    DateTime @default(now())
+  // Set when this version was superseded by an approved access request.
+  requestId    String?
+
+  secret       Secret   @relation(fields: [secretId], references: [id], onDelete: Cascade)
+
+  @@unique([secretId, version])
+  @@index([secretId])
+  @@map("secret_versions")
+}
+
+// ---------------------------------------------------------------------------
+// Sync
+// ---------------------------------------------------------------------------
+
+enum SyncTargetKind {
+  LOCAL
+  CICD
+  KUBERNETES
+  TERRAFORM
+  SERVERLESS
+  VM
+}
+
+enum SyncStatus {
+  SYNCED
+  DRIFTED
+  PENDING
+  FAILED
+  UNKNOWN
+}
+
+// A SyncTarget is a place a secret must exist at runtime. The control plane
+// never stores credentials for the target in plaintext either — the agent
+// pulls, or we push with a short-lived token.
+model SyncTarget {
+  id            String         @id @default(cuid())
+  environmentId String
+  name          String
+  kind          SyncTargetKind
+  // e.g. "k8s://prod-us-east/api", "github://org/repo/actions"
+  endpoint      String
+  // Pull-based targets fetch on a schedule via a scoped agent token.
+  pullMode      Boolean        @default(false)
+  enabled       Boolean        @default(true)
+  lastRunAt     DateTime?
+  lastStatus    SyncStatus     @default(UNKNOWN)
+  lastError     String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  environment   Environment @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  states        SyncState[]
+  runs          SyncRun[]
+
+  @@index([environmentId])
+  @@map("sync_targets")
+}
+
+model SyncState {
+  id           String     @id @default(cuid())
+  syncTargetId String
+  secretId     String
+  status       SyncStatus @default(UNKNOWN)
+  // Which version the target currently has — the core drift signal.
+  observedVersion Int?
+  observedHash String?
+  checkedAt    DateTime   @default(now())
+
+  syncTarget   SyncTarget @relation(fields: [syncTargetId], references: [id], onDelete: Cascade)
+  secret       Secret     @relation(fields: [secretId], references: [id], onDelete: Cascade)
+
+  @@unique([syncTargetId, secretId])
+  @@map("sync_states")
+}
+
+model SyncRun {
+  id           String     @id @default(cuid())
+  syncTargetId String
+  status       SyncStatus
+  startedAt    DateTime   @default(now())
+  finishedAt   DateTime?
+  secretsPushed Int       @default(0)
+  secretsSkipped Int      @default(0)
+  error        String?
+  // Structured log lines surfaced in the UI.
+  log          Json?
+
+  syncTarget   SyncTarget @relation(fields: [syncTargetId], references: [id], onDelete: Cascade)
+
+  @@index([syncTargetId, startedAt])
+  @@map("sync_runs")
+}
+
+// ---------------------------------------------------------------------------
+// Rotation
+// ---------------------------------------------------------------------------
+
+model RotationPolicy {
+  id            String   @id @default(cuid())
+  name          String
+  // Interval in days; the worker rotates anything past due.
+  intervalDays  Int      @default(90)
+  // Amount of warning before due date, in days.
+  notifyBeforeDays Int   @default(14)
+  // auto = worker generates a new random value; manual = opens a task.
+  mode          String   @default("manual") // auto | manual
+  // Strategy for generated values.
+  generator     String   @default("base64:32")
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  secrets       Secret[]
+  events        RotationEvent[]
+
+  @@map("rotation_policies")
+}
+
+model RotationEvent {
+  id          String   @id @default(cuid())
+  policyId    String
+  secretId    String
+  status      String   @default("SUCCEEDED") // SUCCEEDED | FAILED | SCHEDULED
+  reason      String?
+  fromVersion Int?
+  toVersion   Int?
+  runAt       DateTime @default(now())
+
+  policy      RotationPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@index([secretId])
+  @@map("rotation_events")
+}
+
+// ---------------------------------------------------------------------------
+// Governance
+// ---------------------------------------------------------------------------
+
+// A Grant gives a principal (user or machine identity) access to a scope.
+model Grant {
+  id             String      @id @default(cuid())
+  organizationId String
+  // Either userId or a machine principal is set; a null user means the grant
+  // targets a machine identity.
+  userId         String?
+  principal      String?     // human-readable machine identity, e.g. "ci/github/deploy"
+  environmentId  String?
+  secretId       String?
+  // READ | WRITE | ADMIN
+  permission     String      @default("READ")
+  // Optional expiry — time-boxed access for contractors / break-glass.
+  expiresAt      DateTime?
+  createdAt      DateTime    @default(now())
+  createdById    String?
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  environment    Environment? @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  secret         Secret?      @relation(fields: [secretId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([environmentId])
+  @@map("grants")
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  DENIED
+  EXPIRED
+  CANCELLED
+}
+
+// Break-glass / just-in-time access. Approving creates a time-boxed Grant.
+model AccessRequest {
+  id             String        @id @default(cuid())
+  organizationId String
+  environmentId  String?
+  secretId       String?
+  requesterId    String
+  reviewerId     String?
+  permission     String        @default("READ")
+  justification  String
+  // Minutes the granted access lasts once approved.
+  durationMinutes Int          @default(60)
+  status         RequestStatus @default(PENDING)
+  decisionNote   String?
+  decidedAt      DateTime?
+  expiresAt      DateTime?
+  createdAt      DateTime      @default(now())
+
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  environment    Environment?  @relation(fields: [environmentId], references: [id])
+  secret         Secret?       @relation(fields: [secretId], references: [id])
+  requester      User          @relation("requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  reviewer       User?         @relation("reviewer", fields: [reviewerId], references: [id])
+
+  @@index([organizationId, status])
+  @@map("access_requests")
+}
+
+// Org-level policy rules evaluated by the server on write paths.
+model Policy {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  // deny_plaintext_in_cicd | require_approval_for_prod | max_ttl_days |
+  // require_rotation | deny_wildcard_paths | require_mfa_for_prod
+  rule           String
+  // JSON parameters for the rule.
+  config         Json?
+  severity       String   @default("high") // low | medium | high | critical
+  enabled        Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("policies")
+}
+
+// Append-only, hash-chained audit trail. One chain per organization.
+model AccessEvent {
+  id             String   @id @default(cuid())
+  organizationId String
+  actorId        String?
+  actorEmail     String
+  // secret.read | secret.write | secret.rotate | sync.run | grant.create |
+  // auth.login | policy.update | request.approve | export.download
+  action         String
+  resourceType   String
+  resourceId     String?
+  resourceLabel  String?
+  environmentId  String?
+  secretId       String?
+  ip             String?
+  userAgent      String?
+  result         String   @default("SUCCESS") // SUCCESS | DENIED | ERROR
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  // Hash chain
+  prevHash       String?
+  hash           String
+  seq            Int
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor          User?        @relation(fields: [actorId], references: [id])
+  secret         Secret?      @relation(fields: [secretId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, seq])
+  @@index([secretId])
+  @@index([actorId])
+  @@map("access_events")
+}
+
+// ---------------------------------------------------------------------------
+// Machine auth
+// ---------------------------------------------------------------------------
+
+// Scoped tokens for CI/CD, CLI and agents. We store only a SHA-256 of the
+// token; the plaintext is shown once at creation.
+model ApiToken {
+  id             String    @id @default(cuid())
+  organizationId String
+  name           String
+  tokenHash      String    @unique
+  // Display prefix, e.g. "sop_live_ab12" — safe to show in the UI.
+  prefix         String
+  principal      String
+  // JSON list of scopes, e.g. ["secrets:read","sync:run"].
+  scopes         Json
+  environmentIds Json?
+  expiresAt      DateTime?
+  lastUsedAt     DateTime?
+  revokedAt      DateTime?
+  createdById    String?
+  createdAt      DateTime  @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy      User?        @relation(fields: [createdById], references: [id])
+
+  @@index([organizationId])
+  @@map("api_tokens")
+}

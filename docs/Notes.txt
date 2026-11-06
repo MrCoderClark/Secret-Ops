@@ -1,0 +1,7 @@
+npm install
+npx tsx scripts/bootstrap.ts    # generate the root key + session secret
+cp .env.example .env            # paste them in
+docker compose up -d postgres
+npx prisma migrate dev
+npx prisma db seed
+npm run dev

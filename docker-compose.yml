@@ -1,0 +1,65 @@
+# ---------------------------------------------------------------------------
+# Local / single-host deployment.
+#
+#   docker compose up -d
+#   docker compose exec app npx prisma migrate deploy
+#   docker compose exec app npx tsx prisma/seed.ts
+#
+# Secrets come from `.env` and are never baked into an image.
+# ---------------------------------------------------------------------------
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-secretops}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secretops}
+      POSTGRES_DB: ${POSTGRES_DB:-secretops}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-secretops} -d ${POSTGRES_DB:-secretops}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-secretops}:${POSTGRES_PASSWORD:-secretops}@postgres:5432/${POSTGRES_DB:-secretops}?schema=public
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
+      SECRETOPS_ROOT_KEYS: ${SECRETOPS_ROOT_KEYS:?SECRETOPS_ROOT_KEYS must be set}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-secretops}:${POSTGRES_PASSWORD:-secretops}@postgres:5432/${POSTGRES_DB:-secretops}?schema=public
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
+      SECRETOPS_ROOT_KEYS: ${SECRETOPS_ROOT_KEYS:?SECRETOPS_ROOT_KEYS must be set}
+      NODE_ENV: production
+      ROTATION_SWEEP_MS: ${ROTATION_SWEEP_MS:-21600000}
+      DRIFT_SWEEP_MS: ${DRIFT_SWEEP_MS:-1800000}
+    # The worker shares the app image but runs the scheduler entrypoint.
+    command: ["node", "-e", "require('child_process').spawn('npx',['tsx','scripts/worker.ts'],{stdio:'inherit'})"]
+
+volumes:
+  postgres-data:
