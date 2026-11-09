@@ -5,7 +5,7 @@ part of the same change that moves a line — stale progress is worse than none.
 
 Legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
-Last updated: 2026-11-09 (phase-5a-redesign/console branch — shell + Overview redesigned to "graphite + phosphor + chartreuse" direction)
+Last updated: 2026-11-09 (phase-5b/high-touch branch — Secrets, Sync, Audit pages + Dialog + reveal/rotate/delete flows)
 
 ---
 
@@ -83,21 +83,21 @@ Governance
 Shell
 - [x] `web/components/shell/Sidebar.tsx`
 - [x] `web/components/shell/Header.tsx` (search field + health pill)
-- [ ] `web/components/shell/CommandPalette.tsx` (phase-5b)
+- [ ] `web/components/shell/CommandPalette.tsx` (phase-5c)
 - [x] `web/app/(app)/layout.tsx`
-- [~] UI primitives: `Button`, `Card`, `Table`, `Badge`, `Input`, `CoverageBar` done; `Dialog`, `Select` in phase-5b
+- [~] UI primitives: `Button`, `Card`, `Table`, `Badge`, `Input`, `Gauge`, `StatChip`, `ChainStrip`, `Dialog` done; `Select` deferred (native used for now)
 
 Pages
 - [x] `web/app/login/page.tsx`
 - [x] `/overview` — mirrors the mock (metrics, sync posture, runway, recent activity)
-- [ ] `/secrets` — filterable table, reveal, rotate, delete (stub placeholder in 5a)
-- [ ] `/sync` — targets, plan/dry-run/apply (stub placeholder in 5a)
-- [ ] `/rotation` — overdue / due soon / no policy (stub placeholder in 5a)
-- [ ] `/access` — queue, active grants, members (stub placeholder in 5a)
-- [ ] `/audit` — event stream + chain verifier panel (stub placeholder in 5a)
-- [ ] `/policies` — enabled rules + catalogue (stub placeholder in 5a)
-- [ ] `/tokens` — mint, scopes, env limits, revoke (stub placeholder in 5a)
-- [ ] `/settings` — org, session, encryption posture (stub placeholder in 5a)
+- [x] `/secrets` — filterable table, reveal (30s auto-close), rotate, delete
+- [x] `/sync` — targets rail, plan diff, dry-run / apply
+- [ ] `/rotation` — overdue / due soon / no policy (stub placeholder; phase-5c)
+- [ ] `/access` — queue, active grants, members (stub placeholder; phase-5c)
+- [x] `/audit` — event stream + chain verifier panel
+- [ ] `/policies` — enabled rules + catalogue (stub placeholder; phase-5c)
+- [ ] `/tokens` — mint, scopes, env limits, revoke (stub placeholder; phase-5c)
+- [ ] `/settings` — org, session, encryption posture (stub placeholder; phase-5c)
 
 ## Milestone 6 — Worker
 
