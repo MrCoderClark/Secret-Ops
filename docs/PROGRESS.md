@@ -5,7 +5,7 @@ part of the same change that moves a line — stale progress is worse than none.
 
 Legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
-Last updated: 2026-11-06 (phase-1/primitives branch)
+Last updated: 2026-11-06 (chore/milestone-0-finish branch — M0 complete)
 
 ---
 
@@ -16,11 +16,11 @@ Last updated: 2026-11-06 (phase-1/primitives branch)
 - [x] `docker-compose.yml`, `Dockerfile`, `.env.example`
 - [x] `package.json` with pinned deps
 - [x] `SPECS.md`, `PROGRESS.md`, `CLAUDE.md`
-- [ ] `next.config.ts` with security headers + standalone output
-- [ ] `tsconfig.json`, `tailwind.config.ts`, `postcss.config.js`
+- [x] `next.config.mjs` with security headers + standalone output
+- [x] `tsconfig.json`, `tailwind.config.ts`, `postcss.config.mjs`
 - [x] `web/app/layout.tsx`, `web/app/globals.css` (Next.js scaffold)
-- [ ] `web/middleware.ts` (cross-origin guard + `x-request-id`)
-- [ ] `web/scripts/bootstrap.ts` — prints `SESSION_SECRET` + `SECRETOPS_ROOT_KEYS`
+- [x] `web/middleware.ts` (cross-origin guard + `x-request-id`)
+- [x] `web/scripts/bootstrap.ts` — prints `SESSION_SECRET` + `SECRETOPS_ROOT_KEYS`
 - [x] `web/prisma/schema.prisma` — moved from `docs/` so Prisma finds it
 
 ## Milestone 1 — Primitives
