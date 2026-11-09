@@ -1,14 +1,10 @@
 import { ButtonHTMLAttributes, forwardRef } from "react";
 
-// Button — the one control type for every clickable action. Variants map to
-// intent, not colour, so a rename of the accent token flows through.
-//
-//   primary   accent-filled, high emphasis (the single "primary action" per screen)
-//   secondary surface-raised, standard
-//   ghost     text-only, subtle inline action
-//   danger    red-filled, destructive confirmation
-//
-// Size: md (default) or sm. Use sm inside tables and compact lists.
+// Button variants map to intent, not colour, so a palette change flows
+// through. "primary" fires the chartreuse accent -- reserve it for the one
+// highest-intent action on a screen (New secret, Approve, Mint token).
+// Everything else is "secondary" (default), "ghost" (text-only), or
+// "danger" (destructive confirmations).
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 type Size = "sm" | "md";
@@ -19,13 +15,13 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const BASE =
-  "inline-flex items-center justify-center gap-1.5 rounded-md font-medium whitespace-nowrap transition disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base";
+  "inline-flex items-center justify-center gap-1.5 rounded-md font-medium whitespace-nowrap transition disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-slab";
 
 const VARIANTS: Record<Variant, string> = {
-  primary:   "bg-accent text-fg-on-accent hover:bg-accent-hover",
-  secondary: "bg-surface-raised text-fg-primary border border-border-subtle hover:bg-surface-hover",
-  ghost:     "text-fg-secondary hover:bg-surface-hover",
-  danger:    "bg-danger text-fg-on-accent hover:brightness-110",
+  primary:   "bg-accent text-abyss hover:brightness-110 shadow-accent",
+  secondary: "bg-raised text-ink border border-line-strong hover:bg-inset hover:border-ink-faint",
+  ghost:     "text-ink-dim hover:bg-inset hover:text-ink",
+  danger:    "bg-stop text-ink hover:brightness-110",
 };
 
 const SIZES: Record<Size, string> = {

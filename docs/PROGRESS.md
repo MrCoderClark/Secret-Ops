@@ -5,7 +5,7 @@ part of the same change that moves a line — stale progress is worse than none.
 
 Legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
-Last updated: 2026-11-09 (phase-5a/dashboard branch — shell + Overview + UI primitives done)
+Last updated: 2026-11-09 (phase-5a-redesign/console branch — shell + Overview redesigned to "graphite + phosphor + chartreuse" direction)
 
 ---
 
@@ -158,6 +158,14 @@ Append-only. One line each, dated.
   `tsx scripts/worker.ts` resolves `@/lib/*` and the Prisma client at boot.
   Worker is also gated behind the `full` / `prod` profile — in hybrid-dev
   you run `pnpm worker` on the host in a second terminal.
+- **2026-11-09** — Dashboard shipped in phase-5a read as a bland generic
+  B2B template (shouldn't have called SPECS § 8's ASCII bar "v1 acceptable"
+  and shipped it unchallenged). Reworked around a specific thesis — the
+  product is a **forensic tool**, not growth-SaaS — with new tokens
+  (graphite + phosphor + a single chartreuse used in four places only),
+  mono as the display face, and an audit **chain strip** as the signature
+  element. SPECS's permission to ship an ASCII coverage bar is now
+  expressly superseded by the segmented `<Gauge>` primitive.
 
 ## Risks / open questions
 
@@ -166,5 +174,7 @@ Append-only. One line each, dated.
   than writing rows directly.
 - Argon2 native binding fails on some Alpine builds. The crypto layer must
   fall back to `scrypt` as `SECURITY.md` promises.
-- The mock's coverage bars are ASCII (`====|-----`). Keep it ASCII in the UI
-  for now — a real bar component can replace it later without an API change.
+- ~~The mock's coverage bars are ASCII (`====|-----`). Keep it ASCII in the UI
+  for now — a real bar component can replace it later without an API change.~~
+  Superseded 2026-11-09: replaced with the segmented `<Gauge>` primitive as
+  part of the phase-5a-redesign console pass.
