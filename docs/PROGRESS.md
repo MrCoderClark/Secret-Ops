@@ -5,7 +5,7 @@ part of the same change that moves a line — stale progress is worse than none.
 
 Legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
-Last updated: 2026-11-09 (phase-4b/api-governance branch — Milestone 4 complete)
+Last updated: 2026-11-09 (phase-6/worker branch — M6 complete)
 
 ---
 
@@ -101,9 +101,9 @@ Pages
 
 ## Milestone 6 — Worker
 
-- [ ] `scripts/worker.ts` — rotation sweep (6h default)
-- [ ] `scripts/worker.ts` — drift sweep (30m default)
-- [ ] Shared logging format, honours `ROTATION_SWEEP_MS` / `DRIFT_SWEEP_MS`
+- [x] `web/scripts/worker.ts` — rotation sweep (6h default)
+- [x] `web/scripts/worker.ts` — drift sweep (30m default)
+- [x] Shared JSON-per-line logging, honours `ROTATION_SWEEP_MS` / `DRIFT_SWEEP_MS`
 
 ## Milestone 7 — Release
 
@@ -147,6 +147,17 @@ Append-only. One line each, dated.
   `..\\.env`, or a wrapper that does it. Not fixed yet because adding
   `dotenv-cli` breaks the "no new deps without a reason" rule — revisit if
   the paper cut recurs.
+- **2026-11-09** — Compose's `app` service is now opt-in via the `full` /
+  `prod` profile. Default `docker compose up -d` brings up only `postgres`
+  so there is never a `:3000` fight with `pnpm dev`. Full-stack rehearsal
+  is `docker compose --profile full up -d`. CLAUDE.md § Commands → "Two
+  paths, never both at once" documents the split.
+- **2026-11-09** — Worker returns to `docker-compose.yml` now that
+  `web/scripts/worker.ts` exists. Dockerfile's runner stage carries
+  `scripts/`, `lib/`, `tsconfig.json` and installs `tsx@4.19.2` globally so
+  `tsx scripts/worker.ts` resolves `@/lib/*` and the Prisma client at boot.
+  Worker is also gated behind the `full` / `prod` profile — in hybrid-dev
+  you run `pnpm worker` on the host in a second terminal.
 
 ## Risks / open questions
 
