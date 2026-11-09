@@ -20,6 +20,9 @@
     "worker": "tsx scripts/worker.ts",
     "bootstrap": "tsx scripts/bootstrap.ts"
   },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "dependencies": {
     "react": "^18",
     "react-dom": "^18",

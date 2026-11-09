@@ -5,7 +5,7 @@ part of the same change that moves a line — stale progress is worse than none.
 
 Legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
-Last updated: 2026-11-09 (phase-2/service-layer branch — M2 complete)
+Last updated: 2026-11-09 (phase-3/seed branch — M3 complete)
 
 ---
 
@@ -41,9 +41,9 @@ Last updated: 2026-11-09 (phase-2/service-layer branch — M2 complete)
 
 ## Milestone 3 — Seed
 
-- [ ] `prisma/seed.ts` — org, users, projects, environments, secrets, targets, policies, rotation policies, access requests, seeded audit events
-- [ ] `prisma migrate dev --name init` + commit the generated directory
-- [ ] `prisma db seed` runs clean and prints credentials
+- [x] `web/prisma/seed.ts` — org, users, projects, environments, secrets, targets, policies, rotation policies, access requests, seeded audit events
+- [x] `prisma migrate dev --name init` + commit the generated directory
+- [x] `prisma db seed` runs clean and prints credentials
 
 ## Milestone 4 — API
 
@@ -141,6 +141,12 @@ Append-only. One line each, dated.
   Milestone 6 lands `web/scripts/worker.ts`. Rationale: a service that
   always crash-loops is worse than one that isn't defined. Lands back when
   the code exists and the image copies `tsx` into runtime.
+- **2026-11-09** — `.env` lives at the repo root but Prisma (invoked from
+  `web/`) only looks at `web/.env` and `web/prisma/.env`. Running a prisma
+  command therefore needs `DATABASE_URL` preloaded into the shell from
+  `..\\.env`, or a wrapper that does it. Not fixed yet because adding
+  `dotenv-cli` breaks the "no new deps without a reason" rule — revisit if
+  the paper cut recurs.
 
 ## Risks / open questions
 
