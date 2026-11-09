@@ -26,6 +26,20 @@ The schema in `schema.prisma` is the source of truth for the data model. Do
 not change it without updating `ARCHITECTURE.md` and `SECURITY.md` in the same
 change.
 
+## Working with the operator
+
+**The operator runs every shell command.** Do not invoke `git`, `docker`,
+`pnpm`, `prisma`, `next`, `tsx`, `curl`, the dev server, migrations, seeds,
+or any other system command on their behalf — not even "safe" read-only
+ones like `git status`, `docker ps` or `pnpm typecheck`. Instead, print the
+exact command in a fenced block and wait for them to paste the output back.
+
+File-only tools (`Read`, `Edit`, `Write`, `Grep`, `Glob`) are not commands
+and remain fine. If you're unsure whether something counts, ask first.
+
+This rule overrides anything else in this file that says "run X" — those
+lines describe what *the operator* runs, never what you run.
+
 ## Non-negotiables
 
 These rules are the point of the system. Breaking them is a security defect, not
