@@ -66,5 +66,28 @@ services:
       # fast-fails on bind conflicts, so routing around them beats hunting.
       - "${APP_PORT:-3000}:3000"
 
+  worker:
+    # Same opt-in profiles as `app` — the worker belongs with the full-stack
+    # path, not hybrid dev (where `pnpm worker` on the host is the right loop).
+    profiles: ["full", "prod"]
+    # Reuses the app image; we only override the entrypoint. The Dockerfile's
+    # runner stage carries scripts/, lib/ and tsx so this just works.
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-secretops}:${POSTGRES_PASSWORD:-secretops}@postgres:5432/${POSTGRES_DB:-secretops}?schema=public
+      SECRETOPS_ROOT_KEYS: ${SECRETOPS_ROOT_KEYS:?SECRETOPS_ROOT_KEYS must be set}
+      # Override these to run the sweeps faster in staging; defaults in
+      # scripts/worker.ts are 6h (rotation) and 30m (drift).
+      ROTATION_SWEEP_MS: ${ROTATION_SWEEP_MS:-}
+      DRIFT_SWEEP_MS: ${DRIFT_SWEEP_MS:-}
+      NODE_ENV: production
+    command: ["tsx", "scripts/worker.ts"]
+
 volumes:
   postgres-data:

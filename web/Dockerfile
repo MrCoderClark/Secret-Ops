@@ -64,6 +64,16 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modul
 # resolves at boot in web/lib/crypto.ts.
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/argon2 ./node_modules/argon2
 
+# Worker runtime. The worker runs the same service layer the Next.js server
+# does (web/lib/*), so we carry the raw TS sources + tsconfig.json for the
+# @/* path alias, plus tsx to execute them. docker-compose.yml's worker
+# service overrides CMD to point at scripts/worker.ts. The Next.js server
+# itself never touches any of these files.
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
+COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
+RUN npm install -g tsx@4.19.2
+
 USER nextjs
 EXPOSE 3000
 
