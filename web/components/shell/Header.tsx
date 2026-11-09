@@ -43,16 +43,10 @@ export function Header() {
     return () => { alive = false; clearInterval(id); };
   }, []);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        inputRef.current?.focus();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  // ⌘K/Ctrl+K is now owned by the global CommandPalette (mounted in the
+  // authenticated shell). The header's input stays as a visual anchor; a
+  // focus click or typing into it still works. Removing the local listener
+  // means both shortcuts don't fire against the same keypress.
 
   return (
     <header className="h-14 shrink-0 bg-slab border-b border-line flex items-center gap-4 px-6">
