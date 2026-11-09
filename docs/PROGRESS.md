@@ -5,7 +5,7 @@ part of the same change that moves a line — stale progress is worse than none.
 
 Legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
-Last updated: 2026-11-09 (phase-4a/api-core branch — Health/Auth + Secrets + Sync routes done)
+Last updated: 2026-11-09 (phase-4b/api-governance branch — Milestone 4 complete)
 
 ---
 
@@ -68,15 +68,15 @@ Sync
 - [x] `GET /api/sync/:id/bundle` (pull-mode only; `no-store`)
 
 Access
-- [ ] `GET /api/access/requests`
-- [ ] `POST /api/access/requests`
-- [ ] `PATCH /api/access/requests/:id` (approve / deny; grants created with expiry)
+- [x] `GET /api/access/requests`
+- [x] `POST /api/access/requests`
+- [x] `PATCH /api/access/requests/:id` (approve / deny; grants created with expiry)
 
 Governance
-- [ ] `GET /api/tokens` · `POST /api/tokens` (returns plaintext once)
-- [ ] `DELETE /api/tokens/:id`
-- [ ] `POST /api/audit/verify`
-- [ ] `GET /api/search?q=`
+- [x] `GET /api/tokens` · `POST /api/tokens` (returns plaintext once)
+- [x] `DELETE /api/tokens/:id`
+- [x] `POST /api/audit/verify`
+- [x] `GET /api/search?q=`
 
 ## Milestone 5 — Dashboard
 
