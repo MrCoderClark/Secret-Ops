@@ -5,7 +5,7 @@ part of the same change that moves a line — stale progress is worse than none.
 
 Legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
-Last updated: 2026-11-06 (chore/milestone-0-finish branch — M0 complete)
+Last updated: 2026-11-09 (phase-2/service-layer branch — M2 complete)
 
 ---
 
@@ -36,8 +36,8 @@ Last updated: 2026-11-06 (chore/milestone-0-finish branch — M0 complete)
 
 ## Milestone 2 — Service layer
 
-- [ ] `web/lib/secrets.ts` — `listSecrets`, `putSecret`, `revealSecret`, `rotateSecret`, `deleteSecret`
-- [ ] `web/lib/sync.ts` — `planSync`, `runSync`, `recordObservedState`, `bundleFor`, `adapterFor` (stubs that decrypt-prove)
+- [x] `web/lib/secrets.ts` — `listSecrets`, `putSecret`, `revealSecret`, `rotateSecret`, `deleteSecret`
+- [x] `web/lib/sync.ts` — `planSync`, `runSync`, `recordObservedState`, `bundleFor`, `adapterFor` (stubs that decrypt-prove)
 
 ## Milestone 3 — Seed
 
