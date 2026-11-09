@@ -47,7 +47,7 @@ a style issue.
    the process memory, derived from `SECRETOPS_ROOT_KEYS`. In production, the
    app refuses to start without it.
 6. **Reveal is `POST` + `Cache-Control: no-store`.** Never a `GET`. Set the
-   header on the route AND in `next.config.ts`.
+   header on the route AND in `next.config.mjs`.
 7. **Append an `AccessEvent` inside the same transaction that reads the tail.**
    `(organizationId, seq)` is unique — a race loses and must retry rather than
    fork the chain.
@@ -72,20 +72,26 @@ adding a lateral import.
 
 ## Commands
 
+The toolchain is pnpm 10 via corepack. All app commands run from `web/`;
+`docker compose` and the env-file copy run from the repo root.
+
 ```bash
-npm install
-npx tsx scripts/bootstrap.ts    # generate SESSION_SECRET + SECRETOPS_ROOT_KEYS
-cp env.example .env             # paste them in
+# from web/
+pnpm install
+pnpm bootstrap                  # generate SESSION_SECRET + SECRETOPS_ROOT_KEYS
+# from repo root
+cp docs/env.example .env        # paste the bootstrap output in
 docker compose up -d postgres
-npx prisma migrate dev
-npx prisma db seed
-npm run dev                     # dashboard on :3000
-npm run worker                  # rotation + drift sweeps, second terminal
-npm run typecheck
-npm run build
+# from web/
+pnpm db:migrate
+pnpm db:seed
+pnpm dev                        # dashboard on :3000
+pnpm worker                     # rotation + drift sweeps, second terminal
+pnpm typecheck
+pnpm build
 ```
 
-`npm run typecheck` and `npm run build` are the gate. Neither needs a live
+`pnpm typecheck` and `pnpm build` are the gate. Neither needs a live
 database — the build sets a placeholder `DATABASE_URL`.
 
 ## Branching
