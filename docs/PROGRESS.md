@@ -5,7 +5,7 @@ part of the same change that moves a line — stale progress is worse than none.
 
 Legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
-Last updated: 2026-11-09 (phase-5b/high-touch branch — Secrets, Sync, Audit pages + Dialog + reveal/rotate/delete flows)
+Last updated: 2026-11-09 (phase-5c/governance-pages branch — M5 complete: 9 real pages + CommandPalette)
 
 ---
 
@@ -83,21 +83,21 @@ Governance
 Shell
 - [x] `web/components/shell/Sidebar.tsx`
 - [x] `web/components/shell/Header.tsx` (search field + health pill)
-- [ ] `web/components/shell/CommandPalette.tsx` (phase-5c)
+- [x] `web/components/shell/CommandPalette.tsx` — global ⌘K, three sections, keyboard nav
 - [x] `web/app/(app)/layout.tsx`
-- [~] UI primitives: `Button`, `Card`, `Table`, `Badge`, `Input`, `Gauge`, `StatChip`, `ChainStrip`, `Dialog` done; `Select` deferred (native used for now)
+- [x] UI primitives: `Button`, `Card`, `Table`, `Badge`, `Input`, `Gauge`, `StatChip`, `ChainStrip`, `Dialog`; native `<select>` used in filters, dedicated `Select` component deferred (no quality loss)
 
 Pages
 - [x] `web/app/login/page.tsx`
 - [x] `/overview` — mirrors the mock (metrics, sync posture, runway, recent activity)
 - [x] `/secrets` — filterable table, reveal (30s auto-close), rotate, delete
 - [x] `/sync` — targets rail, plan diff, dry-run / apply
-- [ ] `/rotation` — overdue / due soon / no policy (stub placeholder; phase-5c)
-- [ ] `/access` — queue, active grants, members (stub placeholder; phase-5c)
+- [x] `/rotation` — overdue / due soon / no policy
+- [x] `/access` — queue, active grants, members, recent decisions, approve/deny with note
 - [x] `/audit` — event stream + chain verifier panel
-- [ ] `/policies` — enabled rules + catalogue (stub placeholder; phase-5c)
-- [ ] `/tokens` — mint, scopes, env limits, revoke (stub placeholder; phase-5c)
-- [ ] `/settings` — org, session, encryption posture (stub placeholder; phase-5c)
+- [x] `/policies` — enabled rules + catalogue
+- [x] `/tokens` — mint-once dialog, scope checkboxes, revoke with confirm
+- [x] `/settings` — org info, encryption posture (KEK + keyring size), session info
 
 ## Milestone 6 — Worker
 

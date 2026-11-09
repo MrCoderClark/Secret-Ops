@@ -2,6 +2,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Sidebar, type SidebarUser } from "@/components/shell/Sidebar";
 import { Header } from "@/components/shell/Header";
+import { CommandPalette } from "@/components/shell/CommandPalette";
 import { resolveActor } from "@/lib/session";
 import { db } from "@/lib/db";
 
@@ -34,6 +35,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Header />
         <main className="flex-1 overflow-auto">{children}</main>
       </div>
+      {/* Mounted once so Cmd-K works from every page without each one
+          having to render it. */}
+      <CommandPalette />
     </div>
   );
 }
