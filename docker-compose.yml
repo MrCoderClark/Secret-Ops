@@ -1,15 +1,23 @@
 # ---------------------------------------------------------------------------
 # SecretOps — local / single-host deployment.
 #
-#   docker compose up -d                                 # postgres + app
+# The default `docker compose up -d` brings up ONLY postgres. The app runs
+# on your host via `pnpm dev` while you're building, which is the fastest
+# edit loop and the one CLAUDE.md § Commands documents.
+#
+#   docker compose up -d                                 # postgres only
+#   cd web && pnpm dev                                   # app on the host
+#
+# When you want to rehearse what Docker would actually ship — the Next.js
+# standalone build inside the Alpine image with argon2 wired in — opt into
+# the `full` profile. That's the production-style path.
+#
+#   docker compose --profile full up -d                  # postgres + app
 #   docker compose exec app pnpm prisma migrate deploy   # apply migrations
 #   docker compose exec app pnpm db:seed                 # optional demo data
 #
-# For day-to-day development, run just Postgres in a container and keep the
-# app on the host (faster iteration, native node_modules):
-#
-#   docker compose up -d postgres
-#   cd web && pnpm dev
+# This split exists so there's never a port :3000 fight between a container
+# started by a previous session and the dev server you're trying to boot now.
 #
 # Secrets come from .env at this directory and are never baked into an image.
 # The worker service lands in Milestone 6 (web/scripts/worker.ts); the compose
@@ -35,6 +43,10 @@ services:
       retries: 5
 
   app:
+    # Opt-in only: `docker compose up -d` without --profile skips this
+    # service, so postgres comes up but nothing fights pnpm dev for :3000.
+    # Bring it up with `docker compose --profile full up -d`.
+    profiles: ["full", "prod"]
     build:
       context: ./web
       dockerfile: Dockerfile
