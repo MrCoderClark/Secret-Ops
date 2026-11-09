@@ -108,6 +108,23 @@ pnpm build
 `pnpm typecheck` and `pnpm build` are the gate. Neither needs a live
 database — the build sets a placeholder `DATABASE_URL`.
 
+### Two paths, never both at once
+
+Compose defines two services the app side runs on: `postgres`, and the
+Next.js runtime baked into the Dockerfile as `app`. Only `postgres` starts
+by default so there is never a `:3000` fight.
+
+- **Hybrid dev** — `docker compose up -d` (postgres only) then `pnpm dev`
+  on the host. This is the loop for writing code.
+- **Full stack / production rehearsal** — `docker compose --profile full
+  up -d`. Postgres AND the built Next.js image come up. Use this to
+  verify a milestone works inside the image Docker would ship, not as a
+  day-to-day runtime.
+
+Switching between them: `docker compose stop app` before `pnpm dev`, or
+`APP_PORT=3001` in `.env` to let both coexist (the compose file already
+supports that override).
+
 ## Branching
 
 Every major change goes on its own branch off `main`. Do not commit a feature,
