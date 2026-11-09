@@ -559,22 +559,133 @@ export async function bundleFor(input: BundleForInput): Promise<BundleResult> {
 }
 
 // --------------------------------------------------------------------------
+// listSyncTargets — metadata rows for the Sync page and CLI listings.
+// --------------------------------------------------------------------------
+
+export type SyncTargetSummary = {
+  id: string;
+  name: string;
+  kind: SyncTargetKind;
+  endpoint: string;
+  environmentId: string;
+  pullMode: boolean;
+  enabled: boolean;
+  lastRunAt: Date | null;
+  lastStatus: SyncStatus;
+  lastError: string | null;
+};
+
+export async function listSyncTargets(input: {
+  actor: Actor;
+  environmentId?: string;
+}): Promise<SyncTargetSummary[]> {
+  const { actor } = input;
+  if (!can(actor, "secret.read.metadata")) return [];
+
+  const rows = await db.syncTarget.findMany({
+    where: {
+      ...(input.environmentId ? { environmentId: input.environmentId } : {}),
+      environment: { project: { organizationId: actor.organizationId } },
+      ...(actor.kind === "machine" && actor.environmentIds
+        ? { environmentId: { in: actor.environmentIds } }
+        : {}),
+    },
+    orderBy: [{ environmentId: "asc" }, { name: "asc" }],
+  });
+
+  return rows.map<SyncTargetSummary>((t) => ({
+    id: t.id,
+    name: t.name,
+    kind: t.kind,
+    endpoint: t.endpoint,
+    environmentId: t.environmentId,
+    pullMode: t.pullMode,
+    enabled: t.enabled,
+    lastRunAt: t.lastRunAt,
+    lastStatus: t.lastStatus,
+    lastError: t.lastError,
+  }));
+}
+
+// --------------------------------------------------------------------------
+// createSyncTarget — audited sync.configure event. Caller must have
+// sync.configure capability (Admin+ or machine with sync:configure scope).
+// --------------------------------------------------------------------------
+
+export type CreateSyncTargetInput = {
+  actor: Actor;
+  environmentId: string;
+  name: string;
+  kind: SyncTargetKind;
+  endpoint: string;
+  pullMode?: boolean;
+  context?: ActorContext;
+};
+
+export type CreateSyncTargetOutcome =
+  | { ok: true; target: SyncTarget }
+  | { ok: false; code: "forbidden" | "environment_not_found"; error: string };
+
+export async function createSyncTarget(input: CreateSyncTargetInput): Promise<CreateSyncTargetOutcome> {
+  const { actor } = input;
+  if (!can(actor, "sync.configure")) {
+    return { ok: false, code: "forbidden", error: "You cannot configure sync targets." };
+  }
+  const env = await db.environment.findUnique({
+    where: { id: input.environmentId },
+    include: { project: { select: { organizationId: true } } },
+  });
+  if (!env || env.project.organizationId !== actor.organizationId) {
+    return { ok: false, code: "environment_not_found", error: "Environment not found." };
+  }
+
+  const target = await db.syncTarget.create({
+    data: {
+      environmentId: input.environmentId,
+      name: input.name,
+      kind: input.kind,
+      endpoint: input.endpoint,
+      pullMode: input.pullMode ?? false,
+      enabled: true,
+      lastStatus: SyncStatus.UNKNOWN,
+    },
+  });
+
+  await recordEvent({
+    organizationId: actor.organizationId,
+    actorId: actor.kind === "user" ? actor.id : null,
+    actorEmail: actorEmail(actor),
+    action: "sync.configure",
+    resourceType: "sync_target",
+    resourceId: target.id,
+    resourceLabel: target.name,
+    environmentId: target.environmentId,
+    ip: input.context?.ip ?? null,
+    userAgent: input.context?.userAgent ?? null,
+    result: "SUCCESS",
+    metadata: { kind: target.kind, endpoint: target.endpoint, pullMode: target.pullMode },
+  });
+
+  return { ok: true, target };
+}
+
+// --------------------------------------------------------------------------
 // Internals
 // --------------------------------------------------------------------------
 
 async function loadTarget(syncTargetId: string, actor: Actor): Promise<SyncTarget | null> {
-  const target = await db.syncTarget.findUnique({
-    where: { id: syncTargetId },
-    include: { environment: { select: { project: { select: { organizationId: true } } } } },
+  // Org-scoping and machine-token env scoping are both pushed into SQL so
+  // the result is already a plain SyncTarget — no join to destructure off
+  // on the way out, no extra round trip.
+  return db.syncTarget.findFirst({
+    where: {
+      id: syncTargetId,
+      environment: { project: { organizationId: actor.organizationId } },
+      ...(actor.kind === "machine" && actor.environmentIds
+        ? { environmentId: { in: actor.environmentIds } }
+        : {}),
+    },
   });
-  if (!target) return null;
-  if (target.environment.project.organizationId !== actor.organizationId) return null;
-  if (actor.kind === "machine" && actor.environmentIds && !actor.environmentIds.includes(target.environmentId)) {
-    return null;
-  }
-  // Strip the joined fields before returning so callers see a plain SyncTarget.
-  const { environment: _env, ...rest } = target;
-  return rest as SyncTarget;
 }
 
 function sealedFromRow(v: SecretVersion): SealedValue {

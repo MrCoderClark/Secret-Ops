@@ -5,7 +5,7 @@ part of the same change that moves a line — stale progress is worse than none.
 
 Legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
-Last updated: 2026-11-09 (phase-3/seed branch — M3 complete)
+Last updated: 2026-11-09 (phase-4a/api-core branch — Health/Auth + Secrets + Sync routes done)
 
 ---
 
@@ -48,24 +48,24 @@ Last updated: 2026-11-09 (phase-3/seed branch — M3 complete)
 ## Milestone 4 — API
 
 Health / Auth
-- [ ] `GET /api/health`
-- [ ] `POST /api/auth/login` (with rate limit + uniform timing)
-- [ ] `POST /api/auth/logout`
+- [x] `GET /api/health`
+- [x] `POST /api/auth/login` (with rate limit + uniform timing)
+- [x] `POST /api/auth/logout`
 
 Secrets
-- [ ] `GET /api/secrets`
-- [ ] `POST /api/secrets` (idempotent on `valueHash`)
-- [ ] `GET /api/secrets/:id` (history)
-- [ ] `PATCH /api/secrets/:id`
-- [ ] `DELETE /api/secrets/:id` (soft)
-- [ ] `POST /api/secrets/:id/reveal` (`no-store`, audited, DENIED logged)
-- [ ] `POST /api/secrets/:id/rotate`
+- [x] `GET /api/secrets`
+- [x] `POST /api/secrets` (idempotent on `valueHash`)
+- [x] `GET /api/secrets/:id` (history)
+- [x] `PATCH /api/secrets/:id`
+- [x] `DELETE /api/secrets/:id` (soft)
+- [x] `POST /api/secrets/:id/reveal` (`no-store`, audited, DENIED logged)
+- [x] `POST /api/secrets/:id/rotate`
 
 Sync
-- [ ] `GET /api/sync` · `POST /api/sync`
-- [ ] `GET /api/sync/:id/plan`
-- [ ] `POST /api/sync/:id/run` (`dryRun` honoured)
-- [ ] `GET /api/sync/:id/bundle` (pull-mode only; `no-store`)
+- [x] `GET /api/sync` · `POST /api/sync`
+- [x] `GET /api/sync/:id/plan`
+- [x] `POST /api/sync/:id/run` (`dryRun` honoured)
+- [x] `GET /api/sync/:id/bundle` (pull-mode only; `no-store`)
 
 Access
 - [ ] `GET /api/access/requests`
