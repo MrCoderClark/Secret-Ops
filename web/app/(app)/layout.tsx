@@ -5,22 +5,17 @@ import { Header } from "@/components/shell/Header";
 import { resolveActor } from "@/lib/session";
 import { db } from "@/lib/db";
 
-// Authenticated dashboard shell.
-//
-// Every /(app)/* page goes through here. We resolve the actor server-side
-// and 302 to /login if there is no session. Machine tokens cannot sign in
-// to the dashboard — Bearer-only actors redirect to /login too; they are
-// the API's problem, not the UI's.
+// Authenticated shell -- Sidebar + Header + <main>. Every /(app)/* page
+// goes through here. Machine tokens cannot sign in to the dashboard, so
+// a Bearer actor redirects to /login the same as no session.
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const actor = await resolveActor({ headers: headers(), cookies: cookies() });
-  if (!actor || actor.kind !== "user") {
-    redirect("/login");
-  }
+  if (!actor || actor.kind !== "user") redirect("/login");
 
   const [user, org] = await Promise.all([
     db.user.findUnique({ where: { id: actor.id }, select: { name: true, email: true } }),
-    db.organization.findUnique({ where: { id: actor.organizationId }, select: { name: true } }),
+    db.organization.findUnique({ where: { id: actor.organizationId }, select: { name: true, activeKeyId: true } }),
   ]);
   if (!user || !org) redirect("/login");
 
@@ -29,10 +24,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     email: user.email,
     role: actor.role,
     organizationName: org.name,
+    activeKeyId: org.activeKeyId,
   };
 
   return (
-    <div className="min-h-screen flex bg-surface-base text-fg-primary">
+    <div className="min-h-screen flex bg-slab text-ink">
       <Sidebar user={sidebarUser} />
       <div className="flex-1 flex flex-col min-w-0">
         <Header />

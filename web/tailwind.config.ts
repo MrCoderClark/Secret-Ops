@@ -9,41 +9,45 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Mapped one-to-one to the CSS variables in globals.css. Components
-        // refer to Tailwind names (bg-surface-raised, text-fg-muted) so the
-        // dark/light swap is a token-file concern, not a component concern.
-        surface: {
-          DEFAULT: "var(--surface-base)",
-          base:    "var(--surface-base)",
-          raised:  "var(--surface-raised)",
-          hover:   "var(--surface-hover)",
-          sunken:  "var(--surface-sunken)",
+        // Mapped 1:1 to the CSS variables in globals.css. Components refer to
+        // Tailwind names (bg-raised, text-ink-dim); a light-theme toggle later
+        // only has to redefine the --* tokens, not touch component files.
+        abyss:   "var(--bg-abyss)",
+        slab:    "var(--bg-slab)",
+        raised:  "var(--bg-raised)",
+        inset:   "var(--bg-inset)",
+
+        line:          "var(--line)",
+        "line-strong": "var(--line-strong)",
+
+        ink: {
+          DEFAULT: "var(--ink)",
+          dim:     "var(--ink-dim)",
+          faint:   "var(--ink-faint)",
         },
-        border: {
-          subtle: "var(--border-subtle)",
-          strong: "var(--border-strong)",
-        },
-        fg: {
-          primary:   "var(--fg-primary)",
-          secondary: "var(--fg-secondary)",
-          muted:     "var(--fg-muted)",
-          "on-accent": "var(--fg-on-accent)",
-        },
+
+        signal:       "var(--signal)",
+        "signal-dim": "var(--signal-dim)",
+        alert:        "var(--alert)",
+        "alert-dim":  "var(--alert-dim)",
+        stop:         "var(--stop)",
+        "stop-dim":   "var(--stop-dim)",
+        trace:        "var(--trace)",
+
         accent: {
           DEFAULT: "var(--accent)",
-          hover:   "var(--accent-hover)",
-          soft:    "var(--accent-soft)",
+          dim:     "var(--accent-dim)",
         },
-        success: { DEFAULT: "var(--success)", soft: "var(--success-soft)" },
-        warn:    { DEFAULT: "var(--warn)",    soft: "var(--warn-soft)" },
-        danger:  { DEFAULT: "var(--danger)",  soft: "var(--danger-soft)" },
-        info:    { DEFAULT: "var(--info)",    soft: "var(--info-soft)" },
       },
-      borderColor: {
-        DEFAULT: "var(--border-subtle)",
+      fontFamily: {
+        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
+      borderColor: { DEFAULT: "var(--line)" },
       boxShadow: {
-        card: "0 1px 2px 0 rgb(0 0 0 / 0.25), 0 0 0 1px var(--border-subtle)",
+        card:   "0 1px 2px 0 rgb(0 0 0 / 0.35), 0 0 0 1px var(--line)",
+        signal: "0 0 8px rgb(79 196 140 / 0.6)",
+        accent: "0 0 10px rgb(208 255 76 / 0.5)",
       },
     },
   },

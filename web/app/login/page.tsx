@@ -3,10 +3,9 @@
 import { FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-// Sign-in surface. Posts email+password to /api/auth/login; on success the
-// server sets sop_session + sop_csrf cookies and we push the user to the
-// `next` query param (or /overview by default). The password field never
-// hits state after submit and the form never persists input across reloads.
+// Sign-in surface. Minimal, graphite, mono-accented -- same visual world as
+// the dashboard it unlocks. Posts to /api/auth/login; the server sets the
+// session + CSRF cookies and we push to ?next= or /overview.
 
 export default function LoginPage() {
   const router = useRouter();
@@ -44,41 +43,35 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-base px-4">
-      <div className="w-full max-w-sm rounded-xl bg-surface-raised border border-border-subtle shadow-card p-8">
-        <div className="flex items-center gap-2 mb-6">
-          <LockGlyph />
-          <span className="text-lg font-semibold tracking-tight">SecretOps</span>
+    <div className="min-h-screen bg-slab flex items-center justify-center px-4">
+      <div className="w-full max-w-sm rounded-lg bg-raised border border-line p-8">
+        <div className="flex items-center gap-2.5 mb-8">
+          <span className="w-[22px] h-[22px] grid place-items-center bg-accent text-abyss rounded font-mono font-bold text-[13px]">S</span>
+          <span className="font-mono font-semibold text-[15px] tracking-tight">SecretOps</span>
         </div>
-        <h1 className="text-xl font-semibold mb-1">Sign in</h1>
-        <p className="text-sm text-fg-muted mb-6">Use your work email and password.</p>
+        <h1 className="font-mono text-xl font-medium mb-1 tracking-tight">Sign in</h1>
+        <p className="text-sm text-ink-dim mb-6">Use your work email and password.</p>
 
-        <form onSubmit={onSubmit} className="space-y-4" noValidate>
-          <label className="block">
-            <span className="text-xs font-medium text-fg-secondary">Email</span>
+        <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+          <label className="flex flex-col gap-1">
+            <span className="label-eyebrow">Email</span>
             <input
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full rounded-md bg-surface-sunken border border-border-subtle px-3 py-2 text-sm outline-none focus:border-accent"
+              type="email" required autoComplete="email"
+              value={email} onChange={(e) => setEmail(e.target.value)}
+              className="rounded-md bg-inset border border-line px-3 py-2 text-sm text-ink outline-none focus:border-accent-dim transition"
             />
           </label>
-          <label className="block">
-            <span className="text-xs font-medium text-fg-secondary">Password</span>
+          <label className="flex flex-col gap-1">
+            <span className="label-eyebrow">Password</span>
             <input
-              type="password"
-              required
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full rounded-md bg-surface-sunken border border-border-subtle px-3 py-2 text-sm outline-none focus:border-accent"
+              type="password" required autoComplete="current-password"
+              value={password} onChange={(e) => setPassword(e.target.value)}
+              className="rounded-md bg-inset border border-line px-3 py-2 text-sm text-ink outline-none focus:border-accent-dim transition"
             />
           </label>
 
           {error && (
-            <div className="rounded-md bg-danger-soft border border-danger/40 px-3 py-2 text-sm text-danger">
+            <div className="rounded-md bg-stop/10 border border-stop/30 px-3 py-2 text-sm text-stop">
               {error}
             </div>
           )}
@@ -86,26 +79,16 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={busy || !email || !password}
-            className="w-full rounded-md bg-accent text-fg-on-accent font-medium py-2 text-sm hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="w-full rounded-md bg-accent text-abyss font-medium text-sm py-2.5 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-accent"
           >
             {busy ? "Signing in..." : "Sign in"}
           </button>
         </form>
 
-        <p className="mt-6 text-xs text-fg-muted">
-          Seeded demo credentials are in the README. Sign in as{" "}
-          <span className="mono">owner@acme.test</span> for full access.
+        <p className="mt-6 text-[11px] text-ink-faint font-mono">
+          demo credentials in README. <span className="text-ink-dim">owner@acme.test</span> for full access.
         </p>
       </div>
     </div>
-  );
-}
-
-function LockGlyph() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="4" y="11" width="16" height="10" rx="2" stroke="currentColor" strokeWidth="2" />
-      <path d="M8 11V8a4 4 0 1 1 8 0v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
   );
 }

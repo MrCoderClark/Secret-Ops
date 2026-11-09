@@ -3,93 +3,94 @@
 @tailwind utilities;
 
 /*
- * Dark-first design tokens. The dashboard ships dark by default (matching
- * the mock); a light override is wired in for operators who prefer it and
- * for prefers-color-scheme: light.
+ * SecretOps console -- design tokens.
  *
- * Tokens are single-purpose: `--surface-*` for backgrounds, `--border-*`
- * for divider lines, `--fg-*` for text, `--accent` for primary actions,
- * and semantic status colours (success/warn/danger/info).
- * Components MUST reference the token via Tailwind (`bg-surface`), never
- * a raw hex.
+ * One deliberate visual world: cryptographic graphite (cool near-black
+ * surfaces + hairline dividers) with phosphor-tuned semantic colours and
+ * a single electric chartreuse accent used in four places only (active
+ * nav indicator, search prompt character, primary CTA, chain-verifier
+ * LED). Dark-locked via data-theme="dark" on <html>; the light block is
+ * kept as a documented no-op for a future toggle, not a surprise fallback.
+ *
+ * Every component references these tokens by name; nothing references a
+ * raw hex.
  */
 
 :root {
-  /* Dark theme is the default. */
-  --surface-base:   #0b1120;   /* page background */
-  --surface-raised: #111a2e;   /* cards, sidebars */
-  --surface-hover:  #182340;   /* row/button hover */
-  --surface-sunken: #060a16;   /* input fields */
+  /* Surfaces -- deepest to highest. "abyss" is behind everything; "slab" is
+     the page; "raised" is the sidebar + cards; "inset" is inputs + chips. */
+  --bg-abyss:   #070a0e;
+  --bg-slab:    #0d1218;
+  --bg-raised:  #141b24;
+  --bg-inset:   #1b2430;
 
-  --border-subtle:  #1e2a44;
-  --border-strong:  #2a395a;
+  --line:        #242e3c;
+  --line-strong: #334256;
 
-  --fg-primary:     #e8ecf5;
-  --fg-secondary:   #a3adc2;
-  --fg-muted:       #6b7794;
-  --fg-on-accent:   #ffffff;
+  /* Ink -- warm off-white primary + two dim tiers. */
+  --ink:       #e6ebf1;
+  --ink-dim:   #8b96a8;
+  --ink-faint: #55617a;
 
-  --accent:         #3b82f6;   /* blue 500 */
-  --accent-hover:   #2563eb;   /* blue 600 */
-  --accent-soft:    #1e3a8a;   /* blue 900 — for active nav background */
+  /* Semantic status. Greens are phosphor-tuned to evoke a live terminal. */
+  --signal:     #4fc48c;
+  --signal-dim: #2a7a55;
+  --alert:      #e8a940;
+  --alert-dim:  #7a5a23;
+  --stop:       #e55353;
+  --stop-dim:   #7a2d2d;
+  --trace:      #5aa9ff;
 
-  --success:        #22c55e;
-  --success-soft:   #052e18;
-  --warn:           #f59e0b;
-  --warn-soft:      #3a2a06;
-  --danger:         #ef4444;
-  --danger-soft:    #3a0e12;
-  --info:           #22d3ee;
-  --info-soft:      #042e38;
+  /* The one bold choice. Used only in: active nav LED, search "/" prompt,
+     primary CTA, chain-verify button, brand glyph. Everywhere else is
+     graphite + phosphor. */
+  --accent:     #d0ff4c;
+  --accent-dim: #4d5e1f;
+
+  color-scheme: dark;
 }
 
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    --surface-base:   #f8fafc;
-    --surface-raised: #ffffff;
-    --surface-hover:  #f1f5f9;
-    --surface-sunken: #eef2f8;
-
-    --border-subtle:  #e2e8f0;
-    --border-strong:  #cbd5e1;
-
-    --fg-primary:     #0f172a;
-    --fg-secondary:   #334155;
-    --fg-muted:       #64748b;
-
-    --accent-soft:    #dbeafe;
-  }
-}
-
+/* A future theme toggle flips data-theme="light" to re-enable these. For
+   now the parent app pins data-theme="dark" on <html> so this block is a
+   documented no-op. Keeping it means the toggle later is one attribute
+   change, not a stylesheet rewrite. */
 :root[data-theme="light"] {
-  --surface-base:   #f8fafc;
-  --surface-raised: #ffffff;
-  --surface-hover:  #f1f5f9;
-  --surface-sunken: #eef2f8;
-  --border-subtle:  #e2e8f0;
-  --border-strong:  #cbd5e1;
-  --fg-primary:     #0f172a;
-  --fg-secondary:   #334155;
-  --fg-muted:       #64748b;
-  --accent-soft:    #dbeafe;
+  --bg-abyss:   #f8fafc;
+  --bg-slab:    #ffffff;
+  --bg-raised:  #ffffff;
+  --bg-inset:   #f1f5f9;
+  --line:        #e2e8f0;
+  --line-strong: #cbd5e1;
+  --ink:       #0f172a;
+  --ink-dim:   #475569;
+  --ink-faint: #94a3b8;
+  --accent-dim: #a3c742;
+  color-scheme: light;
 }
 
 html, body { height: 100%; }
 
 body {
-  background: var(--surface-base);
-  color: var(--fg-primary);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg-slab);
+  color: var(--ink);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Reusable utilities --------------------------------------------------- */
+@layer utilities {
+  .font-mono { font-family: var(--font-mono), ui-monospace, "SF Mono", Menlo, monospace; }
+  .font-sans { font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif; }
+  .tabular   { font-variant-numeric: tabular-nums; }
+}
 
 @layer components {
-  .mono {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  }
   .label-eyebrow {
-    @apply text-xs tracking-widest font-semibold uppercase text-fg-muted;
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 600;
   }
 }
