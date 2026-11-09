@@ -616,6 +616,147 @@ export async function deleteSecret(input: DeleteSecretInput): Promise<DeleteOutc
 }
 
 // --------------------------------------------------------------------------
+// getSecretHistory — version metadata (fingerprint/version/createdAt), never
+// plaintext. Powers the Secrets detail page and the CLI `history` subcommand.
+// --------------------------------------------------------------------------
+
+export type SecretHistoryEntry = {
+  version: number;
+  fingerprint: string;
+  valueHash: string;
+  keyId: string;
+  createdAt: Date;
+  createdVia: string;
+  createdById: string | null;
+};
+
+export type HistoryOutcome =
+  | { ok: true; secret: SecretSummary; versions: SecretHistoryEntry[] }
+  | ServiceDenial
+  | ServiceNotFound;
+
+export async function getSecretHistory(input: {
+  actor: Actor;
+  secretId: string;
+}): Promise<HistoryOutcome> {
+  const { actor, secretId } = input;
+  if (!can(actor, "secret.read.metadata")) {
+    return { ok: false, code: "forbidden", error: "You cannot read secret metadata." };
+  }
+  const secret = await db.secret.findUnique({
+    where: { id: secretId },
+    include: {
+      project: { select: { organizationId: true } },
+      versions: {
+        orderBy: { version: "desc" },
+        select: {
+          version: true,
+          fingerprint: true,
+          valueHash: true,
+          keyId: true,
+          createdAt: true,
+          createdVia: true,
+          createdById: true,
+        },
+      },
+    },
+  });
+  if (!secret || secret.project.organizationId !== actor.organizationId) {
+    return { ok: false, code: "not_found", error: "Secret not found." };
+  }
+  const head = secret.versions[0];
+  const summary: SecretSummary = {
+    id: secret.id,
+    path: secret.path,
+    key: secret.key,
+    valueType: secret.valueType,
+    description: secret.description,
+    environmentId: secret.environmentId,
+    projectId: secret.projectId,
+    rotationPolicyId: secret.rotationPolicyId,
+    currentVersion: head?.version ?? null,
+    fingerprint: head?.fingerprint ?? null,
+    lastWriteAt: head?.createdAt ?? null,
+    updatedAt: secret.updatedAt,
+    createdAt: secret.createdAt,
+  };
+  return { ok: true, secret: summary, versions: secret.versions };
+}
+
+// --------------------------------------------------------------------------
+// updateSecret — metadata-only patch (description, valueType, rotationPolicy).
+// Changing the value is a separate operation (putSecret) with a new version.
+// --------------------------------------------------------------------------
+
+// Note: validation.ts exports a Zod-inferred `UpdateSecretInput` that is the
+// request body shape. This is the service-layer input, which bundles the
+// actor and secretId — rename to `UpdateSecretParams` to avoid a clash in
+// files that import both.
+export type UpdateSecretParams = {
+  actor: Actor;
+  secretId: string;
+  description?: string | null;
+  valueType?: string;
+  rotationPolicyId?: string | null;
+  context?: ActorContext;
+};
+
+export type UpdateOutcome =
+  | { ok: true; secret: Secret }
+  | ServiceDenial
+  | ServiceNotFound;
+
+export async function updateSecret(input: UpdateSecretParams): Promise<UpdateOutcome> {
+  const { actor, secretId } = input;
+  const secret = await db.secret.findUnique({
+    where: { id: secretId },
+    include: {
+      environment: { select: { id: true, stage: true, protected: true } },
+      project: { select: { organizationId: true } },
+    },
+  });
+  if (!secret || secret.deletedAt || secret.project.organizationId !== actor.organizationId) {
+    return { ok: false, code: "not_found", error: "Secret not found." };
+  }
+  if (!canWriteValue(actor, toEnvLike(secret.environment))) {
+    await auditDenied(actor, "secret.write", "secret", secret.environmentId, secret.environment.id, secret.id, "rbac", input.context, { kind: "metadata" });
+    return { ok: false, code: "forbidden", error: "You cannot update secrets in this environment." };
+  }
+
+  const patch: Prisma.SecretUpdateInput = {};
+  if (input.description !== undefined) patch.description = input.description;
+  if (input.valueType !== undefined) patch.valueType = input.valueType;
+  if (input.rotationPolicyId !== undefined) {
+    patch.rotationPolicy = input.rotationPolicyId
+      ? { connect: { id: input.rotationPolicyId } }
+      : { disconnect: true };
+  }
+  if (Object.keys(patch).length === 0) {
+    return { ok: true, secret };
+  }
+
+  const updated = await db.secret.update({ where: { id: secret.id }, data: patch });
+
+  await recordEvent({
+    organizationId: actor.organizationId,
+    actorId: actor.kind === "user" ? actor.id : null,
+    actorEmail: actor.kind === "user" ? actor.email : `machine:${actor.principal}`,
+    action: "secret.write",
+    resourceType: "secret",
+    resourceId: secret.id,
+    resourceLabel: `${secret.path}/${secret.key}`,
+    environmentId: secret.environmentId,
+    secretId: secret.id,
+    ip: input.context?.ip ?? null,
+    userAgent: input.context?.userAgent ?? null,
+    result: "SUCCESS",
+    metadata: { kind: "metadata", fields: Object.keys(patch) },
+  });
+
+  return { ok: true, secret: updated };
+}
+
+// --------------------------------------------------------------------------
 // Internals
 // --------------------------------------------------------------------------
 
