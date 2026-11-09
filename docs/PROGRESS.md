@@ -5,7 +5,7 @@ part of the same change that moves a line — stale progress is worse than none.
 
 Legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
-Last updated: 2026-11-09 (phase-6/worker branch — M6 complete)
+Last updated: 2026-11-09 (phase-5a/dashboard branch — shell + Overview + UI primitives done)
 
 ---
 
@@ -81,23 +81,23 @@ Governance
 ## Milestone 5 — Dashboard
 
 Shell
-- [ ] `web/components/shell/Sidebar.tsx`
-- [ ] `web/components/shell/Header.tsx` (search field + health pill)
-- [ ] `web/components/shell/CommandPalette.tsx`
-- [ ] `web/app/(app)/layout.tsx`
-- [ ] UI primitives: `Button`, `Card`, `Table`, `Badge`, `Dialog`, `Input`, `Select`, `CoverageBar`
+- [x] `web/components/shell/Sidebar.tsx`
+- [x] `web/components/shell/Header.tsx` (search field + health pill)
+- [ ] `web/components/shell/CommandPalette.tsx` (phase-5b)
+- [x] `web/app/(app)/layout.tsx`
+- [~] UI primitives: `Button`, `Card`, `Table`, `Badge`, `Input`, `CoverageBar` done; `Dialog`, `Select` in phase-5b
 
 Pages
-- [ ] `web/app/login/page.tsx`
-- [ ] `/overview` — mirrors the mock (metrics, sync posture, runway, recent activity)
-- [ ] `/secrets` — filterable table, reveal, rotate, delete
-- [ ] `/sync` — targets, plan/dry-run/apply
-- [ ] `/rotation` — overdue / due soon / no policy
-- [ ] `/access` — queue, active grants, members
-- [ ] `/audit` — event stream + chain verifier panel
-- [ ] `/policies` — enabled rules + catalogue
-- [ ] `/tokens` — mint, scopes, env limits, revoke
-- [ ] `/settings` — org, session, encryption posture
+- [x] `web/app/login/page.tsx`
+- [x] `/overview` — mirrors the mock (metrics, sync posture, runway, recent activity)
+- [ ] `/secrets` — filterable table, reveal, rotate, delete (stub placeholder in 5a)
+- [ ] `/sync` — targets, plan/dry-run/apply (stub placeholder in 5a)
+- [ ] `/rotation` — overdue / due soon / no policy (stub placeholder in 5a)
+- [ ] `/access` — queue, active grants, members (stub placeholder in 5a)
+- [ ] `/audit` — event stream + chain verifier panel (stub placeholder in 5a)
+- [ ] `/policies` — enabled rules + catalogue (stub placeholder in 5a)
+- [ ] `/tokens` — mint, scopes, env limits, revoke (stub placeholder in 5a)
+- [ ] `/settings` — org, session, encryption posture (stub placeholder in 5a)
 
 ## Milestone 6 — Worker
 
