@@ -23,7 +23,11 @@ export function FilterBar({ projects, environments }: FilterBarProps) {
   useEffect(() => {
     const id = setTimeout(() => push({ q }), 300);
     return () => clearTimeout(id);
-
+    // `push` reads `params` via closure and gets a fresh reference each
+    // render; adding it to deps would retrigger the debounce on every
+    // keystroke's re-render, defeating the point. The effect only needs
+    // to run when the user's typed text changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
   function push(patch: Record<string, string | null>) {

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { resolveActor } from "@/lib/session";
 import { listSyncTargets, planSync } from "@/lib/sync";
 import { Badge } from "@/components/ui/Badge";
-import { Gauge } from "@/components/ui/Gauge";
 import { RunButtons } from "@/components/sync/RunButtons";
 
 export const dynamic = "force-dynamic";
