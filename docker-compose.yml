@@ -12,9 +12,15 @@
 # standalone build inside the Alpine image with argon2 wired in — opt into
 # the `full` profile. That's the production-style path.
 #
-#   docker compose --profile full up -d                  # postgres + app
-#   docker compose exec app pnpm prisma migrate deploy   # apply migrations
-#   docker compose exec app pnpm db:seed                 # optional demo data
+#   docker compose --profile full up -d                       # postgres + app
+#   docker compose exec app node_modules/.bin/prisma migrate deploy  # migrations
+#   docker compose exec app tsx prisma/seed.ts                # optional demo data
+#
+# The invocations above call the Prisma CLI and tsx directly rather than via
+# `pnpm prisma ...` / `pnpm db:seed`. In a Next.js standalone image the
+# `pnpm` wrapper tries to verify the lockfile at runtime, corepack upgrades
+# itself from the pinned 10 to latest, and overlayfs rejects the symlinks
+# pnpm needs. Calling the binaries directly sidesteps the whole chain.
 #
 # This split exists so there's never a port :3000 fight between a container
 # started by a previous session and the dev server you're trying to boot now.

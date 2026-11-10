@@ -5,7 +5,7 @@ part of the same change that moves a line — stale progress is worse than none.
 
 Legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
-Last updated: 2026-11-10 (main — M7 complete: sweep green + standalone `pnpm build` clean)
+Last updated: 2026-11-10 (phase-7/docker-rehearsal — M7 fully closed: Docker full-profile rehearsal green, Dockerfile migrate path repaired)
 
 ---
 
@@ -125,8 +125,13 @@ separate manual check — stop the dev server, delete `.next`, then
       boundary so `useSearchParams` does not bail the whole prerender.
       Build stays out of the default `smoke-release.ps1` sweep because
       `next build` and `pnpm dev` both own `.next` and cannot coexist.
-- [ ] `docker compose --profile full up -d` builds and comes up healthy
-      (covered by `smoke-release.ps1 -IncludeDocker` — not yet run)
+- [x] `docker compose --profile full up -d` builds and comes up healthy
+      — now covered by the dedicated `scripts/smoke-docker-rehearsal.ps1`,
+      which chains build + up + health probe + migration-drift check +
+      in-container `prisma migrate deploy` (and an optional `-RunSeed`
+      / `-Down`). Green on 2026-11-10. The dev-shaped
+      `smoke-release.ps1 -IncludeDocker` is NOT the right gate here —
+      see the 2026-11-10 decisions-log entry below.
 - [x] CLI / HTTP happy paths succeed against a running instance
       (`smoke-dashboard` + `smoke-pages-5b` + `smoke-pages-5c` all PASS
       in the sweep 2026-11-10)
@@ -207,6 +212,36 @@ Append-only. One line each, dated.
   server to talk to, and `next build` writes to the same `.next` dir
   `pnpm dev` owns — they cannot coexist. Build is opt-in via
   `-IncludeBuild` and documented as a separate manual check.
+- **2026-11-10** — Docker full-profile rehearsal is its own script
+  (`scripts/smoke-docker-rehearsal.ps1`), NOT
+  `smoke-release.ps1 -IncludeDocker`. Reason: the HTTP smokes in the
+  release sweep were written for `pnpm dev` (NODE_ENV=development, plain
+  HTTP, non-Secure cookies). The Docker `app` container runs
+  NODE_ENV=production, which flips the session cookie's `secure` flag on
+  (`web/lib/auth.ts:93`). `Invoke-WebRequest` will not keep a `Secure`
+  cookie received over plain HTTP, so every auth-gated smoke fails at
+  login even when `POST /api/auth/login` returns 200. The rehearsal
+  script covers only what the production shape can actually prove over
+  HTTP (health) plus in-container verifications via `docker exec`
+  (migration drift, `prisma migrate deploy`, optional seed). The
+  dev-shape sweep stays the gate for `pnpm dev` work.
+- **2026-11-10** — Dockerfile defect uncovered and fixed during the
+  rehearsal: the comment at `web/Dockerfile:54-56` advertised that
+  `prisma migrate deploy` could be run via `docker compose exec`, but
+  only `@prisma/client` and `.prisma` (the engine) were copied into the
+  runtime image — the `prisma` CLI package was not. Invoking
+  `pnpm prisma migrate deploy` from inside the container triggered
+  pnpm 10's `verifyDepsBeforeRun`, which fetched 390 packages at
+  runtime; corepack simultaneously auto-upgraded pnpm 10 → 12.18.0
+  (no `packageManager` field pinning it); pnpm 12 then died trying to
+  symlink into `/app/node_modules/.pnpm/*` with
+  `ERR_PNPM_PACKAGE_MANAGER_SYMLINK_FAILED` (overlayfs EXDEV, "Cross-
+  device link"). Fix: copy `/app/node_modules/prisma` from the builder
+  stage and create a `.bin/prisma` shim pointing at
+  `prisma/build/index.js`. Invocation becomes
+  `docker compose exec app node_modules/.bin/prisma migrate deploy` —
+  no pnpm, no corepack, no install at runtime. Seed uses the already-
+  globally-installed `tsx` the same way.
 - **2026-11-09** — Dashboard shipped in phase-5a read as a bland generic
   B2B template (shouldn't have called SPECS § 8's ASCII bar "v1 acceptable"
   and shipped it unchallenged). Reworked around a specific thesis — the
