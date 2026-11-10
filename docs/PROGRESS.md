@@ -5,7 +5,7 @@ part of the same change that moves a line — stale progress is worse than none.
 
 Legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
-Last updated: 2026-11-09 (phase-7/release branch — release verification sweep in place)
+Last updated: 2026-11-10 (main — M7 complete: sweep green + standalone `pnpm build` clean)
 
 ---
 
@@ -107,22 +107,35 @@ Pages
 
 ## Milestone 7 — Release
 
-All verifications are automated through `scripts/smoke-release.ps1`, which
-chains the whole sweep (typecheck, build, worker, dashboard, 5b, 5c,
-chain-tamper, roles) and prints PASS/FAIL per step. Flip the checkboxes
-when the sweep returns PASS on a clean seed.
+All verifications are automated through `scripts/smoke-release.ps1`. The
+default sweep (typecheck + worker + dashboard + 5b + 5c + chain-tamper +
+roles) ran green on 2026-11-10 against a freshly regenerated Prisma
+client; PR #18 landed on main as `f9e8033`. `next build` is intentionally
+NOT in the default sweep because it writes to `.next` while `pnpm dev`
+also owns it, so running them concurrently fails both. Build is a
+separate manual check — stop the dev server, delete `.next`, then
+`pnpm build` from `web/`.
 
-- [ ] `pnpm typecheck` clean (covered by `smoke-release.ps1 → typecheck`)
-- [ ] `pnpm build` clean (covered by `smoke-release.ps1 → build`)
+- [x] `pnpm typecheck` clean (sweep 2026-11-10)
+- [x] `pnpm build` clean — ran standalone from `web/` with the dev
+      server stopped (2026-11-10). Fixes that got it there:
+      `app/page.tsx` marked `force-dynamic` so `cookies()`/`headers()`
+      stop throwing during prerender, and `app/login/page.tsx` split
+      into a server shell + `LoginForm.tsx` client under a Suspense
+      boundary so `useSearchParams` does not bail the whole prerender.
+      Build stays out of the default `smoke-release.ps1` sweep because
+      `next build` and `pnpm dev` both own `.next` and cannot coexist.
 - [ ] `docker compose --profile full up -d` builds and comes up healthy
-      (covered by `smoke-release.ps1 -IncludeDocker`)
-- [ ] CLI happy paths succeed against a running instance
-      (covered by `smoke-dashboard`, `smoke-pages-5b`, `smoke-pages-5c`)
-- [ ] Manual test plan from `CONTRIBUTING.md` passes
-      (role-matrix part is now `smoke-roles.ps1`)
-- [ ] Chain verifier catches a tamper on an edited row
-      (`smoke-chain-tamper.ps1` — flips one hash, asserts the verifier
-      reports a break with firstFailureSeq set, then restores the row)
+      (covered by `smoke-release.ps1 -IncludeDocker` — not yet run)
+- [x] CLI / HTTP happy paths succeed against a running instance
+      (`smoke-dashboard` + `smoke-pages-5b` + `smoke-pages-5c` all PASS
+      in the sweep 2026-11-10)
+- [x] Manual test plan from `CONTRIBUTING.md` passes — RBAC matrix
+      covered by `smoke-roles.ps1` which signs in as the four seeded
+      users and asserts SECURITY.md's capability table holds (PASS
+      2026-11-10)
+- [x] Chain verifier catches a tamper on an edited row
+      (`smoke-chain-tamper.ps1` — PASS 2026-11-10)
 
 ---
 
@@ -177,6 +190,23 @@ Append-only. One line each, dated.
   failure still leaves the chain intact. RBAC conformance against
   `SECURITY.md` is covered by `smoke-roles.ps1` which signs in as each
   seeded user and checks representative capabilities.
+- **2026-11-10** — M7 sweep went green (PR #18 → `f9e8033` on main) after
+  a long detour chasing a typecheck cascade: every error was a missing
+  Prisma type (`AccessRequest`, `Grant`, `Role`, `Secret`, `ApiToken`,
+  `SyncStatus`, plus built-ins `Prisma.JsonNull` and `Prisma.InputJsonValue`
+  that every generated client ships with). Root cause was a corrupt
+  `web/node_modules/.prisma/client` left behind by an earlier
+  `pnpm build` that hit EPERM because `pnpm dev` was holding the query-
+  engine DLL open on Windows. Fix is to stop the dev server, delete
+  `web/node_modules/.prisma` and `web/node_modules/@prisma/client`,
+  `pnpm install`, `pnpm prisma generate`. Future-us: if a Prisma-heavy
+  typecheck explodes with "no exported member" on everything at once,
+  suspect the generated client, not the source files.
+- **2026-11-10** — `next build` is deliberately NOT in the default M7
+  sweep. The sweep wants `pnpm dev` running so the HTTP smokes have a
+  server to talk to, and `next build` writes to the same `.next` dir
+  `pnpm dev` owns — they cannot coexist. Build is opt-in via
+  `-IncludeBuild` and documented as a separate manual check.
 - **2026-11-09** — Dashboard shipped in phase-5a read as a bland generic
   B2B template (shouldn't have called SPECS § 8's ASCII bar "v1 acceptable"
   and shipped it unchallenged). Reworked around a specific thesis — the
