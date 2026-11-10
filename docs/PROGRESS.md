@@ -5,7 +5,7 @@ part of the same change that moves a line — stale progress is worse than none.
 
 Legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
-Last updated: 2026-11-09 (phase-5c/governance-pages branch — M5 complete: 9 real pages + CommandPalette)
+Last updated: 2026-11-09 (phase-7/release branch — release verification sweep in place)
 
 ---
 
@@ -107,12 +107,22 @@ Pages
 
 ## Milestone 7 — Release
 
-- [ ] `npm run typecheck` clean
-- [ ] `npm run build` clean
-- [ ] `docker compose up -d` builds and comes up healthy
-- [ ] CLI examples from `CLI.md` succeed against a fresh instance
-- [ ] Manual test plan in `CONTRIBUTING.md § Testing changes by hand` passes
+All verifications are automated through `scripts/smoke-release.ps1`, which
+chains the whole sweep (typecheck, build, worker, dashboard, 5b, 5c,
+chain-tamper, roles) and prints PASS/FAIL per step. Flip the checkboxes
+when the sweep returns PASS on a clean seed.
+
+- [ ] `pnpm typecheck` clean (covered by `smoke-release.ps1 → typecheck`)
+- [ ] `pnpm build` clean (covered by `smoke-release.ps1 → build`)
+- [ ] `docker compose --profile full up -d` builds and comes up healthy
+      (covered by `smoke-release.ps1 -IncludeDocker`)
+- [ ] CLI happy paths succeed against a running instance
+      (covered by `smoke-dashboard`, `smoke-pages-5b`, `smoke-pages-5c`)
+- [ ] Manual test plan from `CONTRIBUTING.md` passes
+      (role-matrix part is now `smoke-roles.ps1`)
 - [ ] Chain verifier catches a tamper on an edited row
+      (`smoke-chain-tamper.ps1` — flips one hash, asserts the verifier
+      reports a break with firstFailureSeq set, then restores the row)
 
 ---
 
@@ -158,6 +168,15 @@ Append-only. One line each, dated.
   `tsx scripts/worker.ts` resolves `@/lib/*` and the Prisma client at boot.
   Worker is also gated behind the `full` / `prod` profile — in hybrid-dev
   you run `pnpm worker` on the host in a second terminal.
+- **2026-11-09** — Milestone 7 verification is automated as a chained
+  PowerShell sweep (`scripts/smoke-release.ps1`) rather than a manual
+  checklist in a doc. Each individual smoke stays runnable on its own.
+  Chain-tamper detection has a dedicated destructive script that writes
+  directly into `access_events` via `docker exec … psql`, calls the
+  verifier, then restores the row inside a `finally` so a mid-script
+  failure still leaves the chain intact. RBAC conformance against
+  `SECURITY.md` is covered by `smoke-roles.ps1` which signs in as each
+  seeded user and checks representative capabilities.
 - **2026-11-09** — Dashboard shipped in phase-5a read as a bland generic
   B2B template (shouldn't have called SPECS § 8's ASCII bar "v1 acceptable"
   and shipped it unchallenged). Reworked around a specific thesis — the
