@@ -40,6 +40,18 @@ and remain fine. If you're unsure whether something counts, ask first.
 This rule overrides anything else in this file that says "run X" — those
 lines describe what *the operator* runs, never what you run.
 
+**Any multi-step verification or operational sequence is a committed
+script, not a chat paste.** Milestone smoke tests, rehearsal procedures,
+Docker lifecycle flows (build + up + health probe + migrate + seed + down),
+debug walk-throughs, migration runbooks — all of them. If you catch
+yourself about to hand the operator a numbered list of PowerShell
+commands to run in order, stop and write `scripts/smoke-<name>.ps1`
+instead (parameterised, PASS/FAIL per step, final summary, non-zero exit
+on failure). The operator runs the script, not individual commands. This
+is a hard rule: a handful of chained commands may look easier than
+authoring a script, but it burns the operator's time every time they
+repeat the sequence — and milestone work always repeats.
+
 ## Non-negotiables
 
 These rules are the point of the system. Breaking them is a security defect, not

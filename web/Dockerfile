@@ -53,10 +53,17 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # Prisma schema, migrations and the generated client — needed at runtime for
 # the client to boot and for `prisma migrate deploy` run via `docker compose
-# exec`.
+# exec`. The `prisma` CLI package (distinct from `@prisma/client`) is copied
+# too, and a .bin shim is written so operators can invoke it directly as
+# `node_modules/.bin/prisma` without going through pnpm/corepack (which
+# re-triggers an install at runtime and dies on overlayfs symlink limits).
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+RUN mkdir -p ./node_modules/.bin && \
+    ln -sf /app/node_modules/prisma/build/index.js /app/node_modules/.bin/prisma && \
+    chmod +x /app/node_modules/prisma/build/index.js
 
 # argon2's native binding. Marked serverComponentsExternalPackages in
 # next.config.mjs so Next does not try to bundle the .node file; the whole
