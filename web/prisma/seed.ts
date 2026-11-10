@@ -24,7 +24,7 @@
 // to re-seed from a clean slate.
 
 import { Prisma, PrismaClient, type Environment, type Project, type Role, type Secret, type User, SyncTargetKind, SyncStatus } from "@prisma/client";
-import { hashPassword, seal } from "@/lib/crypto";
+import { generateBundleKey, hashPassword, seal } from "@/lib/crypto";
 import { mintMachineToken } from "@/lib/auth";
 import { recordEvent } from "@/lib/audit";
 import { RULE_CATALOGUE, type PolicyRule } from "@/lib/policies";
@@ -495,6 +495,24 @@ async function main(): Promise<void> {
     },
   });
 
+  console.log("→ Initial bundle signing key (Ed25519, sealed by the KEK)…");
+  const bundleKey = generateBundleKey();
+  const bundleKeyRow = await db.bundleKey.create({
+    data: {
+      organizationId: org.id,
+      publicKey: bundleKey.publicKeyB64,
+      ciphertext: bundleKey.sealedPrivate.ciphertext,
+      iv: bundleKey.sealedPrivate.iv,
+      authTag: bundleKey.sealedPrivate.authTag,
+      wrappedDek: bundleKey.sealedPrivate.wrappedDek,
+      dekIv: bundleKey.sealedPrivate.dekIv,
+      dekAuthTag: bundleKey.sealedPrivate.dekAuthTag,
+      keyId: bundleKey.sealedPrivate.keyId,
+      active: true,
+      createdById: owner.id,
+    },
+  });
+
   console.log("→ Audit chain (recordEvent so hashes verify)…");
   await seedAuditEvents({
     orgId: org.id,
@@ -509,6 +527,8 @@ async function main(): Promise<void> {
     approvedRequestId: approvedRequest.id,
     pendingRequestId: pendingRequest.id,
     firstTargetId: targetsByName["payments-api/staging"]?.id ?? null,
+    bundleKeyId: bundleKeyRow.id,
+    bundleKeyPublic: bundleKeyRow.publicKey,
   });
 
   // --------------------------------------------------------------------------
@@ -547,6 +567,8 @@ async function seedAuditEvents(args: {
   approvedRequestId: string;
   pendingRequestId: string;
   firstTargetId: string | null;
+  bundleKeyId: string;
+  bundleKeyPublic: string;
 }): Promise<void> {
   const common = { organizationId: args.orgId };
   const o = { actorId: args.ownerId, actorEmail: args.ownerEmail };
@@ -556,6 +578,16 @@ async function seedAuditEvents(args: {
   await recordEvent({ ...common, ...o, action: "auth.login", resourceType: "session", result: "SUCCESS" });
   await recordEvent({ ...common, ...a, action: "auth.login", resourceType: "session", result: "SUCCESS" });
   await recordEvent({ ...common, ...d, action: "auth.login", resourceType: "session", result: "SUCCESS" });
+
+  await recordEvent({
+    ...common, ...o,
+    action: "bundle_key.create",
+    resourceType: "bundle_key",
+    resourceId: args.bundleKeyId,
+    resourceLabel: `bundle-key ${args.bundleKeyId.slice(0, 8)}`,
+    result: "SUCCESS",
+    metadata: { publicKey: args.bundleKeyPublic, reason: "seed-bootstrap" },
+  });
 
   await recordEvent({
     ...common, ...o,

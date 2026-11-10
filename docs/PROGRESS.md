@@ -5,7 +5,7 @@ part of the same change that moves a line — stale progress is worse than none.
 
 Legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
-Last updated: 2026-11-10 (phase-7/docker-rehearsal — M7 fully closed: Docker full-profile rehearsal green, Dockerfile migrate path repaired)
+Last updated: 2026-11-10 (phase-8/bundle-signing — M8 lands bundle signing; M7 fully closed before it)
 
 ---
 
@@ -104,6 +104,50 @@ Pages
 - [x] `web/scripts/worker.ts` — rotation sweep (6h default)
 - [x] `web/scripts/worker.ts` — drift sweep (30m default)
 - [x] Shared JSON-per-line logging, honours `ROTATION_SWEEP_MS` / `DRIFT_SWEEP_MS`
+
+## Milestone 8 — Bundle signing
+
+Ed25519 signatures on `GET /api/sync/:id/bundle` so pull-mode agents can
+detect tampering in transit or at rest. One active signing key per org;
+soft-revoke on rotation keeps cached signatures verifiable for a grace
+window.
+
+Schema
+- [x] `BundleKey` model — Ed25519 keypair per org, private key envelope-
+      sealed with the same `seal()`/`open()` the rest of the crypto layer
+      uses. Migration `*_bundle_signing`.
+
+Service + crypto
+- [x] `generateBundleKey`, `signBundle`, `verifyBundle` in `web/lib/crypto.ts`
+- [x] `web/lib/bundleKeys.ts` — bootstrap / rotate / list / signBundlePayload
+- [x] RBAC capability `bundle_key.manage` (OWNER, ADMIN) — mirrored in
+      `SECURITY.md` capability table.
+- [x] Audit actions `bundle_key.create`, `bundle_key.rotate` in
+      `actionLabel()` so they render in English on the audit page.
+
+API
+- [x] `GET  /api/bundle-keys`           — list for the actor's org
+- [x] `POST /api/bundle-keys`           — bootstrap (admin+, 409 if active exists)
+- [x] `POST /api/bundle-keys/rotate`    — soft-revoke old, insert new active
+- [x] `GET  /api/sync/:id/bundle`       — body signed, headers `x-signature-bundle`
+      + `x-signature-key-id`; 409 `no_signing_key` if the org has not bootstrapped
+
+Docs
+- [x] `CLI.md` — pull-mode verify recipe in Node (≤30 lines, stdlib only)
+- [x] `SECURITY.md` — capability row added, "Not mitigated" bullet removed,
+      new mitigated-threat row for tampered bundles
+- [x] `ARCHITECTURE.md` — bundle-signing section in the Sync chapter +
+      limitations updated
+
+Seed
+- [x] Fresh seeds generate an initial `BundleKey` for Acme so the bundle
+      route works out of the box. Existing databases need a one-time
+      `POST /api/bundle-keys` (admin+); the smoke script does it.
+
+Verification
+- [x] `scripts/smoke-bundle-signing.ps1` — bootstrap (idempotent on 409) →
+      fetch bundle → verify signature → tamper body → verify fails →
+      rotate → old + new keys both listed → fetch uses new key.
 
 ## Milestone 7 — Release
 
@@ -225,6 +269,19 @@ Append-only. One line each, dated.
   HTTP (health) plus in-container verifications via `docker exec`
   (migration drift, `prisma migrate deploy`, optional seed). The
   dev-shape sweep stays the gate for `pnpm dev` work.
+- **2026-11-10** — M8 bundle signing chose Ed25519 over RSA for the detached
+  signatures: 32-byte public key is compact enough to print in UI chips,
+  stdlib-only verify in Node / Python / Go / Rust, and no parameter zoo.
+  Signature is over the **exact JSON bytes** we write to the response — no
+  canonicalization — matching GitHub's webhook convention. Private key
+  storage reuses `seal()/open()` so there is one envelope pattern to audit,
+  not two. Rotation is **soft**: `POST /api/bundle-keys/rotate` flips old
+  active key to `active: false, revokedAt: now()` but keeps it listed on
+  `GET /api/bundle-keys` so cached signatures still verify; a hard DELETE
+  endpoint will come later when an operator needs to actually burn a key.
+  A separate `BundleKey` table (not a field on Organization) because
+  rotation needs multiple rows per org during the grace window, and the
+  audit footprint wants its own `resource_type: "bundle_key"`.
 - **2026-11-10** — Dockerfile defect uncovered and fixed during the
   rehearsal: the comment at `web/Dockerfile:54-56` advertised that
   `prisma migrate deploy` could be run via `docker compose exec`, but

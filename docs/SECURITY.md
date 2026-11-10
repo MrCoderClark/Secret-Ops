@@ -62,6 +62,7 @@ Two axes, both enforced server-side.
 | Configure sync | ✅ | ✅ | — | — | — |
 | Review requests | ✅ | ✅ | — | — | — |
 | Manage policies / tokens | ✅ | ✅ | — | — | — |
+| Manage bundle signing keys | ✅ | ✅ | — | — | — |
 | Read audit | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Verify chain | ✅ | ✅ | — | ✅ | — |
 | Manage org / assign roles | ✅ | — | — | — | — |
@@ -196,13 +197,10 @@ support conversation can be tied to one request.
 | A committed secret reaching production | The `deny_plaintext_in_cicd` rule rejects values shaped like provider keys |
 | Silent drift | Per-target observed version and hash, surfaced in the UI |
 | Key rotation downtime | `keyId` per version plus lazy rewrapping |
+| Tampered pull bundle | Ed25519 detached signature on `GET /api/sync/:id/bundle`; agents verify before applying |
 
 ### Not mitigated — read this before deploying
 
-- **No envelope signature on pull bundles.** The bundle is TLS-protected in
-  transit, but the agent cannot verify it came from the control plane rather
-  than something that compromised it. Add a signature over the payload before
-  trusting pull mode in an adversarial network.
 - **No HSM or external KMS integration.** `resolveRootKey()` reads an
   environment variable. Production should replace that function body with a KMS
   call; the `Keyring` interface does not change.

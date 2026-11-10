@@ -41,6 +41,7 @@ model Organization {
   requests     AccessRequest[]
   tokens       ApiToken[]
   policies     Policy[]
+  bundleKeys   BundleKey[]
 
   @@map("organizations")
 }
@@ -71,6 +72,7 @@ model User {
   requests      AccessRequest[] @relation("requester")
   reviewed      AccessRequest[] @relation("reviewer")
   tokensCreated ApiToken[]
+  bundleKeysCreated BundleKey[]
 
   @@map("users")
 }
@@ -456,6 +458,44 @@ model AccessEvent {
 // ---------------------------------------------------------------------------
 // Machine auth
 // ---------------------------------------------------------------------------
+
+// Ed25519 signing keypair per organization — used to sign /api/sync/:id/bundle
+// responses so pull-mode agents can detect tampering in transit or at rest.
+// The private key is sealed with the same envelope encryption as SecretVersion
+// (per-key DEK wrapped by the KEK), so a DB leak alone does not expose it.
+// Rotation is soft: a new row becomes active and the old one is marked
+// revokedAt but stays queryable so cached agents can still verify signatures
+// they already received during a grace window.
+model BundleKey {
+  id             String    @id @default(cuid())
+  organizationId String
+  // Ed25519 raw public key, base64. 32 bytes.
+  publicKey      String
+  // Sealed private key — same envelope pattern as SecretVersion.
+  ciphertext     String
+  iv             String
+  authTag        String
+  wrappedDek     String
+  dekIv          String
+  dekAuthTag     String
+  keyId          String    @default("kek-v1")
+  // At most one `active: true` row per organization; enforced in the service
+  // layer (not with a partial unique index so the seed and migrations stay
+  // portable across Postgres major versions).
+  active         Boolean   @default(true)
+  // Non-null => this key is in a grace window: still visible in list output
+  // for verification but no longer used for signing. Hard-delete the row to
+  // revoke verification entirely.
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  createdById    String?
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy      User?        @relation(fields: [createdById], references: [id])
+
+  @@index([organizationId, active])
+  @@map("bundle_keys")
+}
 
 // Scoped tokens for CI/CD, CLI and agents. We store only a SHA-256 of the
 // token; the plaintext is shown once at creation.

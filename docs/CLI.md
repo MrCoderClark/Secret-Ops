@@ -86,6 +86,64 @@ curl -s -H "Authorization: Bearer $SECRETOPS_TOKEN" \
   "$APP_URL/api/sync/$TARGET_ID/bundle" | jq -r '.values | to_entries[] | "\(.key)=\(.value)"'
 ```
 
+### Verifying a pull bundle
+
+Bundle responses carry an Ed25519 detached signature over the exact body bytes:
+
+| Header | Meaning |
+|---|---|
+| `X-Signature-Bundle` | base64 of the Ed25519 signature |
+| `X-Signature-Key-Id` | the `BundleKey` id that signed it (fetch `GET /api/bundle-keys` to resolve) |
+
+Agents **must** verify this signature before applying a bundle. A compromised
+upstream cache, a rogue proxy or a MITM on a flat network is undetectable
+otherwise. Raw public keys are 32 bytes (Ed25519). The server returns them
+base64-encoded — reconstruct the SPKI DER by prepending the fixed 12-byte
+Ed25519 prefix:
+
+```javascript
+// Node 20+. No dependencies beyond the standard library.
+import { createPublicKey, verify } from "node:crypto";
+
+const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
+
+async function fetchAndVerifyBundle(appUrl, token, targetId) {
+  const res = await fetch(`${appUrl}/api/sync/${targetId}/bundle`, {
+    headers: { authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`bundle fetch failed: ${res.status}`);
+
+  // Read the exact bytes we will verify — do NOT reparse or re-stringify.
+  const bodyBytes = Buffer.from(await res.arrayBuffer());
+  const sigB64 = res.headers.get("x-signature-bundle");
+  const keyId = res.headers.get("x-signature-key-id");
+  if (!sigB64 || !keyId) throw new Error("bundle is missing its signature headers");
+
+  // Resolve the public key. Cache this list — it is cheap to refresh.
+  const keysRes = await fetch(`${appUrl}/api/bundle-keys`, {
+    headers: { authorization: `Bearer ${token}` },
+  });
+  const { keys } = await keysRes.json();
+  const match = keys.find((k) => k.id === keyId);
+  if (!match) throw new Error(`unknown signing key ${keyId}`);
+
+  const rawPub = Buffer.from(match.publicKey, "base64");
+  if (rawPub.length !== 32) throw new Error("public key is not 32 bytes");
+  const spki = Buffer.concat([ED25519_SPKI_PREFIX, rawPub]);
+  const publicKey = createPublicKey({ key: spki, format: "der", type: "spki" });
+
+  const ok = verify(null, bodyBytes, publicKey, Buffer.from(sigB64, "base64"));
+  if (!ok) throw new Error("bundle signature failed to verify — reject");
+
+  return JSON.parse(bodyBytes.toString("utf8"));
+}
+```
+
+A key that is listed with `active: false` and a non-null `revokedAt` is in
+the verification grace window — it still verifies old signatures, but new
+fetches use the active key instead. Hard-delete a key via the dashboard to
+revoke verification entirely.
+
 A pull-mode agent should run on a schedule, compare the returned bundle against
 what it last applied, and write only on a difference:
 
