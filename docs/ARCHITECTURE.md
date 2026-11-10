@@ -104,6 +104,19 @@ scoped token, so a private-network runtime never needs an inbound endpoint. Pull
 mode is what you want when the target is behind a firewall or when you would
 rather the long-lived credential have read-only access.
 
+**Bundle signing.** Every pull-mode bundle is signed by the organization's
+active `BundleKey` — an Ed25519 keypair whose private half is sealed with the
+same envelope encryption as secret values. The signature covers the exact
+response body bytes (GitHub-webhooks style — no JSON canonicalization) and
+rides on `X-Signature-Bundle` + `X-Signature-Key-Id` headers. Agents fetch
+the verifying public key from `GET /api/bundle-keys` and cache it. Rotation
+is soft: `POST /api/bundle-keys/rotate` marks the old key `active: false,
+revokedAt: now()` but keeps it listed so cached signatures still verify
+during a grace window; a hard DELETE revokes verification entirely. The
+verifier lives in `web/lib/crypto.ts` (`signBundle` / `verifyBundle`), the
+lifecycle service in `web/lib/bundleKeys.ts`, and CLI.md carries the
+copy-paste recipe for pull-mode agents.
+
 ### Rotation
 
 Two sweep paths, one mechanism. `rotateSecret()` generates a value from the
@@ -183,5 +196,8 @@ means a new policy is data, not a code change to the validation layer.
 
 See the closing section of the README. The sync adapters are reference
 implementations, rate limiting is in-process, and there is no SSO, MFA
-enforcement, bundle signing, or crypto-shredding. Each is a place where the
-structure is right and the implementation stops short.
+enforcement, or crypto-shredding. Each is a place where the structure is
+right and the implementation stops short. Bundle signing landed in M8 —
+every pull-mode bundle now ships with an Ed25519 signature, the public
+key list is at `GET /api/bundle-keys`, and the verification recipe is in
+CLI.md.

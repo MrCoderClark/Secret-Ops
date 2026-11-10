@@ -33,7 +33,9 @@ export type EventAction =
   | "grant.create"
   | "policy.update"
   | "token.create"
-  | "token.revoke";
+  | "token.revoke"
+  | "bundle_key.create"
+  | "bundle_key.rotate";
 
 export type EventResult = "SUCCESS" | "DENIED" | "ERROR";
 
@@ -193,6 +195,8 @@ const LABELS: Record<EventAction, string> = {
   "policy.update": "updated policy",
   "token.create": "created token",
   "token.revoke": "revoked token",
+  "bundle_key.create": "bootstrapped bundle signing key",
+  "bundle_key.rotate": "rotated bundle signing key",
 };
 
 export function actionLabel(action: string): string {

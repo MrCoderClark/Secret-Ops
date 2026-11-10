@@ -2,9 +2,14 @@ import {
   createCipheriv,
   createDecipheriv,
   createHash,
+  createPrivateKey,
+  createPublicKey,
+  generateKeyPairSync,
   randomBytes,
   randomUUID,
   scrypt as scryptCb,
+  sign as nodeSign,
+  verify as nodeVerify,
   timingSafeEqual,
 } from "node:crypto";
 import { createRequire } from "node:module";
@@ -281,6 +286,93 @@ export function generate(spec: string): string {
     }
     default:
       throw new Error(`Unknown generator "${kind}". Supported: base64:N, hex:N, alnum:N, uuid`);
+  }
+}
+
+// --------------------------------------------------------------------------
+// Ed25519 bundle signing
+//
+// Pull-mode sync bundles are signed by the organization's active BundleKey.
+// The private key lives in the DB sealed via the same envelope as
+// SecretVersion (per-key DEK wrapped by the KEK); only the raw 32-byte
+// public key is stored in plaintext so clients can verify without round-
+// tripping through the server.
+//
+// Signatures are computed over the EXACT response body bytes the HTTP route
+// writes — no JSON canonicalization — so agents in any language verify by
+// hashing the same bytes they received on the wire (GitHub-webhook style).
+// --------------------------------------------------------------------------
+
+// Fixed SPKI DER prefix for Ed25519: AlgorithmIdentifier + BIT STRING header.
+// Concatenated with a 32-byte raw public key, this is the full 44-byte SPKI
+// DER encoding that createPublicKey() accepts.
+const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
+
+export type GeneratedBundleKey = {
+  /** Raw 32-byte Ed25519 public key, base64. */
+  publicKeyB64: string;
+  /** Private key, sealed under the active KEK. Store as-is on BundleKey. */
+  sealedPrivate: SealedValue;
+};
+
+/**
+ * Generate a fresh Ed25519 keypair and seal the private half under the active
+ * KEK. The caller stores the returned fields on a new BundleKey row.
+ */
+export function generateBundleKey(kr: Keyring = resolveRootKey()): GeneratedBundleKey {
+  const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+  const spkiPub = publicKey.export({ type: "spki", format: "der" }) as Buffer;
+  // Last 32 bytes of the 44-byte Ed25519 SPKI are the raw public key.
+  const rawPub = spkiPub.subarray(spkiPub.length - 32);
+  // PKCS8 DER is 48 bytes for Ed25519. We base64 it and seal the string so
+  // the existing seal()/open() path stays the storage primitive — no new
+  // serializer to audit.
+  const pkcs8 = privateKey.export({ type: "pkcs8", format: "der" }) as Buffer;
+  const sealedPrivate = seal(pkcs8.toString("base64"), kr);
+  pkcs8.fill(0);
+  return { publicKeyB64: rawPub.toString("base64"), sealedPrivate };
+}
+
+/**
+ * Sign `bodyBytes` with the sealed private key. The signature is Ed25519
+ * over the exact input bytes; no hashing or canonicalization happens here —
+ * the caller passes the bytes they will transmit on the wire.
+ */
+export function signBundle(
+  bodyBytes: Buffer,
+  sealedPrivate: SealedValue,
+  kr: Keyring = resolveRootKey(),
+): string {
+  const pkcs8B64 = open(sealedPrivate, kr);
+  const pkcs8 = Buffer.from(pkcs8B64, "base64");
+  try {
+    const key = createPrivateKey({ key: pkcs8, format: "der", type: "pkcs8" });
+    const sig = nodeSign(null, bodyBytes, key);
+    return sig.toString("base64");
+  } finally {
+    pkcs8.fill(0);
+  }
+}
+
+/**
+ * Verify an Ed25519 signature over `bodyBytes` against the raw 32-byte
+ * public key (base64). The verifier reconstructs the SPKI DER encoding
+ * from the fixed prefix so agents in any language can store just the raw
+ * 32 bytes.
+ */
+export function verifyBundle(
+  bodyBytes: Buffer,
+  signatureB64: string,
+  publicKeyB64: string,
+): boolean {
+  const rawPub = Buffer.from(publicKeyB64, "base64");
+  if (rawPub.length !== 32) return false;
+  const spki = Buffer.concat([ED25519_SPKI_PREFIX, rawPub]);
+  try {
+    const key = createPublicKey({ key: spki, format: "der", type: "spki" });
+    return nodeVerify(null, bodyBytes, key, Buffer.from(signatureB64, "base64"));
+  } catch {
+    return false;
   }
 }
 

@@ -23,6 +23,7 @@ export type Capability =
   | "request.review"
   | "policy.manage"
   | "token.manage"
+  | "bundle_key.manage"
   | "audit.read"
   | "audit.verify"
   | "org.manage";
@@ -41,6 +42,7 @@ const MATRIX: Record<Capability, Role[]> = {
   "request.review": ["OWNER", "ADMIN"],
   "policy.manage": ["OWNER", "ADMIN"],
   "token.manage": ["OWNER", "ADMIN"],
+  "bundle_key.manage": ["OWNER", "ADMIN"],
   "audit.read": ["OWNER", "ADMIN", "DEVELOPER", "AUDITOR", "READONLY"],
   "audit.verify": ["OWNER", "ADMIN", "AUDITOR"],
   "org.manage": ["OWNER"],

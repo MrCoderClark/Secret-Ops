@@ -38,7 +38,8 @@ param(
   [switch]$SkipWorker,
   [switch]$SkipPages,
   [switch]$SkipTamper,
-  [switch]$SkipRoles
+  [switch]$SkipRoles,
+  [switch]$SkipBundle
 )
 
 # NOTE on -IncludeBuild: `next build` writes to .next, but `pnpm dev` (which
@@ -92,7 +93,19 @@ function Step {
 # --- 1. Typecheck ---------------------------------------------------------
 
 if (-not $SkipTypecheck) {
-  Step "typecheck" { Push-Location $webDir; try { pnpm typecheck } finally { Pop-Location } }
+  Step "typecheck" {
+    Push-Location $webDir
+    try {
+      # pnpm's "$ tsc --noEmit" banner prints to stderr even on success.
+      # With $ErrorActionPreference = Stop, PowerShell wraps that banner as
+      # a NativeCommandError and the Step's try/catch marks the step failed
+      # though tsc exit code is 0. Bracket this call with Continue so the
+      # banner is text, not an exception, and trust $LASTEXITCODE.
+      $prev = $ErrorActionPreference
+      $ErrorActionPreference = "Continue"
+      try { pnpm typecheck } finally { $ErrorActionPreference = $prev }
+    } finally { Pop-Location }
+  }
 }
 
 # --- 2. Build (no live DB needed) ----------------------------------------
@@ -162,6 +175,14 @@ if (-not $SkipTamper) {
 if (-not $SkipRoles) {
   Step "smoke-roles" {
     & (Join-Path $scriptDir "smoke-roles.ps1") -BaseUrl $BaseUrl
+  }
+}
+
+# --- 10. Bundle signing (M8) ----------------------------------------------
+
+if (-not $SkipBundle) {
+  Step "smoke-bundle-signing" {
+    & (Join-Path $scriptDir "smoke-bundle-signing.ps1") -BaseUrl $BaseUrl
   }
 }
 
